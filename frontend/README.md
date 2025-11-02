@@ -105,6 +105,33 @@ Once a task is created, it’s asynchronously enriched by the AI model (e.g., st
 
 ---
 
+## Prototype: Supabase email/password login
+
+This repository now contains a small React + TypeScript Vite scaffold with a Supabase email/password login prototype.
+
+Files added:
+- `package.json` — frontend deps and scripts
+- `index.html`, `vite.config.ts`, `tsconfig.json`
+- `src/lib/supabaseClient.ts` — initializes Supabase client using env
+- `src/context/AuthProvider.tsx` — manages session and user state
+- `src/components/Login.tsx` — simple email/password sign-in & sign-up UI
+- `src/App.tsx`, `src/main.tsx`, `src/styles.css`
+- `.env.example` — example env variables for Supabase
+
+How to run (PowerShell):
+
+```powershell
+npm install
+cp .env.example .env
+# Edit .env and set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+npm run dev
+```
+
+Open http://localhost:5173 and try sign up / sign in with email + password.
+
+Note: This prototype uses Supabase JS client only for auth. For production you'll want to implement server-side JWT validation and session handling for API requests.
+
+
 <p align="center">
   <img width="90%"" alt="MockUp2" src="https://github.com/user-attachments/assets/ad433910-2402-46e1-8599-d852db35fbb2" />
 </p>
