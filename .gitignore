@@ -1,0 +1,20 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+.env
+
+# IDE / PyCharm
+.idea/
+*.iml
+
+# Chroma vector database
+.chroma/
+
+# OS
+.DS_Store
+Thumbs.db
