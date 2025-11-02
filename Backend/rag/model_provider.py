@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import List
-from .types import EnrichResult, ContextChunk
+from ..types.types import EnrichResult, ContextChunk
 
 ALLOWED_SP = [1, 2, 3, 5, 8, 13]
 
