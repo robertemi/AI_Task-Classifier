@@ -1,0 +1,9 @@
+#RAG with FastAPI and ChromaDB
+fastapi
+uvicorn[standard]
+chromadb
+pydantic
+numpy
+httpx
+python-dotenv
+#todo pip install Backend\requirements.txt
