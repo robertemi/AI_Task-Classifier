@@ -12,7 +12,9 @@ class Settings:
     MODEL_NAME: name of the model (empty for now since it's a stub)
     """
     CHROMA_DIR: str = os.getenv("CHROMA_DIR", ".chroma")
-    MODEL_PROVIDER: str = os.getenv("MODEL_PROVIDER", "stub")  # replace later
-    MODEL_NAME: str = os.getenv("MODEL_NAME", "")
+    
 
-settings = Settings()
+
+def get_settings():
+    settings = Settings()
+    return settings

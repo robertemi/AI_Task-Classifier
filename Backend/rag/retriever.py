@@ -3,7 +3,7 @@ from typing import List
 from dataclasses import dataclass
 from .chunking import chunk_text, normalize_text, sha256_of
 from .vector_store import VectorStore
-from .types import (
+from ..types.types import (
     IndexProjectRequest, IndexTaskRequest,
     RetrieveRequest, RetrieveResponse, ContextChunk
 )
@@ -23,17 +23,19 @@ class RAGService:
         text = f"{req.name}. {req.description}"
         chunks = chunk_text(text)
         items = [{
-            "id": f"proj-{req.projectId}-v{req.version}-{i}",
+            "id": f"proj-{req.projectId}-{i}",
             "text": ch,
             "metadata": {
                 "projectId": req.projectId, "type": "project",
                 "taskId": None, "title": req.name,
                 "status": req.status, "epic": None,
-                "version": req.version, "hash": sha256_of(ch),
+                # "version": req.version, 
+                "hash": sha256_of(ch),
             },
         } for i, ch in enumerate(chunks)]
         inserted = self.vs.upsert_texts(req.projectId, items)
         return {"chunks_indexed": inserted, "skipped": 0}
+
 
     def index_task(self, req: IndexTaskRequest):
         """Save or update a task with all its details."""
@@ -41,13 +43,14 @@ class RAGService:
         merged = " \n".join([f for f in [req.title, req.user_description, req.ai_description or None] if f])
         chunks = chunk_text(merged)
         items = [{
-            "id": f"task-{req.taskId}-v{req.version}-{i}",
+            "id": f"task-{req.taskId}-{i}",
             "text": ch,
             "metadata": {
                 "projectId": req.projectId, "type": "task",
                 "taskId": req.taskId, "title": req.title,
                 "status": req.status, "epic": req.epic,
-                "version": req.version, "hash": sha256_of(ch),
+                # "version": req.version, 
+                "hash": sha256_of(ch),
             },
         } for i, ch in enumerate(chunks)]
         inserted = self.vs.upsert_texts(req.projectId, items)
@@ -94,3 +97,39 @@ class RAGService:
                 "took_ms": raw.get("timings", {}).get("query", None),
             },
         )
+    
+    """
+    Deterministric project retrieval
+    
+    """
+    def get_project_by_id(self, projectId: int):
+        """
+        Retrieve the project chunks (deterministically) for a given projectId.
+        """
+        raw = self.vs.query(
+            project_id=projectId,
+            query_text="",  # no semantic filter
+            k=50,
+            where={"type": "project"}
+        )
+        docs = raw.get("documents", [[]])[0]
+        return "\n".join(docs) if docs else ""
+    
+
+    """
+    Deterministic task retrieval
+    
+    """
+
+    def get_previous_tasks(self, projectId: int):
+        """
+        Retrieve all previously indexed task chunks under the given projectId.
+        """
+        raw = self.vs.query(
+            project_id=projectId,
+            query_text="",  # return all
+            k=50,
+            where={"type": "task"}
+        )
+        docs = raw.get("documents", [[]])[0]
+        return docs  # return as a list of text chunks

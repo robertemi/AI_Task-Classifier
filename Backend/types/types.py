@@ -2,24 +2,25 @@ from __future__ import annotations
 from typing import List, Optional, Literal, Dict
 from pydantic import BaseModel, Field
 
-TaskStatus = Literal["todo", "in_progress", "in_review", "done", "archived"]
+TaskStatus = Literal["created", "todo", "in_progress", "in_review", "done", "archived"]
 
 class IndexProjectRequest(BaseModel):
-    projectId: int
+    projectId: Optional[int] = None
+    userId: int
     name: str
     description: str
     status: TaskStatus = "todo"
-    version: int = 1
+    # version: int = 1
 
 class IndexTaskRequest(BaseModel):
     projectId: int
-    taskId: int
+    taskId: Optional[int] = None
     title: str
     user_description: str
     ai_description: Optional[str] = None
     epic: Optional[str] = None
     status: TaskStatus = "todo"
-    version: int = 1
+    # version: int = 1
 
 class RetrieveRequest(BaseModel):
     projectId: int

@@ -1,14 +1,15 @@
-from fastapi import FastAPI
-from Backend.api.rag import router as rag_router
+from fastapi import FastAPI, APIRouter
 
-app = FastAPI(title="AI Task Classifier – RAG Backend")
+from backend.model.model import enrich_task_details
+from backend.rag.retriever import RAGService
+from backend.types.types import IndexProjectRequest
 
-# Register the RAG endpoints
-app.include_router(rag_router)
+import asyncio
+from contextlib import asynccontextmanager
 
-# health
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+app = FastAPI() 
 
-# Run with: uvicorn main:app --reload
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # create mock project and task Data 
+    pass

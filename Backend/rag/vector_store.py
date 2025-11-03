@@ -2,8 +2,13 @@ from __future__ import annotations
 from typing import List, Optional, Dict
 from dataclasses import dataclass
 import chromadb
-from Backend.core.config import settings
 from chromadb.utils import embedding_functions
+from backend.core.config import get_settings
+
+
+settings = get_settings()
+
+
 @dataclass
 class VSConfig:
     """Configuration for Chroma (the AI vector database)."""
@@ -16,16 +21,19 @@ class VectorStore:
     It stores text chunks and can search them by similarity.
     Each project has its own "collection" (memory shelf).
     """
+    
     def __init__(self, cfg: Optional[VSConfig] = None):
         self.cfg = cfg or VSConfig(persist_dir=settings.CHROMA_DIR)
         self.client = chromadb.PersistentClient(path=self.cfg.persist_dir)
         self.embed = embedding_functions.DefaultEmbeddingFunction()
+
 
     def _collection(self, project_id: int):
         """Get or create the Chroma collection for this project."""
         return self.client.get_or_create_collection(
             name=f"proj_{project_id}", embedding_function=self.embed
         )
+
 
     def upsert_texts(self, project_id: int, items: List[Dict[str, object]]) -> int:
         """
@@ -42,6 +50,7 @@ class VectorStore:
         )
         return len(items)
 
+
     def delete_by_task(self, project_id: int, task_id: int) -> int:
         """Remove all chunks related to a specific task."""
         coll = self._collection(project_id)
@@ -53,6 +62,7 @@ class VectorStore:
         if ids_to_del:
             coll.delete(ids=ids_to_del)
         return len(ids_to_del)
+
 
     def query(self, project_id: int, query_text: str, k: int = 12, where: Optional[Dict[str, object]] = None):
         """
