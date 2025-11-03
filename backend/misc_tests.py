@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from backend.model.model import enrich_task_details
-from backend.types.types import EnrichTaskRequest , IndexTaskRequest
+from Backend.model.model import enrich_task_details
+from Backend.types.types import EnrichTaskRequest , IndexTaskRequest
 
 import asyncio
 from contextlib import asynccontextmanager

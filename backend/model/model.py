@@ -4,8 +4,8 @@ import json
 import re
 import httpx
 
-from backend.rag.retriever import RAGService
-from backend.types.types import (
+from Backend.rag.retriever import RAGService
+from Backend.types.types import (
     IndexEnrichedTaskRequest,
     IndexTaskRequest,
     EnrichResult
