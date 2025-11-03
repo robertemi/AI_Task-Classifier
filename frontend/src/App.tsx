@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { AuthProvider, useAuth } from './context/AuthProvider'
 import Login from './components/Login'
+import Landing from './components/Landing'
 
 function LoggedIn() {
   const { user, signOut } = useAuth()
@@ -24,5 +25,18 @@ export default function App() {
 function Main() {
   const { session } = useAuth()
 
-  return <div>{session ? <LoggedIn /> : <Login />}</div>
+  // lightweight client-side view state: 'landing' | 'login'
+  const [view, setView] = useState<'landing' | 'login'>('landing')
+
+  if (session) return <LoggedIn />
+
+  return (
+    <div>
+      {view === 'landing' ? (
+        <Landing onStart={() => setView('login')} />
+      ) : (
+        <Login onBack={() => setView('landing')} />
+      )}
+    </div>
+  )
 }
