@@ -1,15 +1,10 @@
-import json
-from fastapi import FastAPI, APIRouter
-from fastapi.responses import JSONResponse
-
-from Backend.model.model import enrich_task_details
-from Backend.rag.retriever import RAGService
-from Backend.types.types import IndexProjectRequest, EnrichTaskRequest , IndexTaskRequest
-from Backend.api.routes import router as api_router
-from Backend.api.routes import TaskForIndex
-
-import asyncio
+from fastapi import FastAPI
 from contextlib import asynccontextmanager
+
+from backend.rag.retriever import RAGService
+from backend.types.types import IndexProjectRequest, IndexTaskRequest
+from backend.api.routes import router as api_router
+
 
 app = FastAPI() 
 
@@ -32,12 +27,11 @@ async def lifespan(app: FastAPI):
         )
     )
 
-    rag.index_task(TaskForIndex(
+    rag.index_task(IndexTaskRequest(
         projectId=1,
         taskId=2,
-        title='Login Screen',
-        user_description='Create login screen',
-        ai_description=""
+        task_title='Login Screen',
+        user_description='Create login screen'
     ))
     yield
     print(" App shutting down")

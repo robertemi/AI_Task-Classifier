@@ -4,8 +4,8 @@ import json
 import re
 import httpx
 
-from Backend.rag.retriever import RAGService
-from Backend.types.types import (
+from backend.rag.retriever import RAGService
+from backend.types.types import (
     IndexEnrichedTaskRequest,
     IndexTaskRequest,
     EnrichResult
@@ -75,7 +75,7 @@ async def enrich_task_details(
     context = (
         f"PROJECT OVERVIEW:\n{project_text}\n\n"
         f"PREVIOUS TASKS:\n{previous_tasks_text}\n\n"
-        f"NEW TASK:\ntask_Title: {req.title}\nDescription: {req.user_description}\n"
+        f"NEW TASK:\ntask_Title: {req.task_title}\nDescription: {req.user_description}\n"
     )
 
     async with httpx.AsyncClient() as client:
@@ -151,7 +151,7 @@ async def enrich_task_details(
         enriched_task = IndexEnrichedTaskRequest(
             projectId=req.projectId,
             taskId=None, # generated later when inserting into the DB,
-            title=req.title,
+            task_title=req.task_title,
             user_description=req.user_description,
             ai_description=ai_description,
             status='todo',

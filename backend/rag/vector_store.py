@@ -3,7 +3,7 @@ from typing import List, Optional, Dict
 from dataclasses import dataclass
 import chromadb
 from chromadb.utils import embedding_functions
-from Backend.core.config import get_settings
+from backend.core.config import get_settings
 
 
 settings = get_settings()

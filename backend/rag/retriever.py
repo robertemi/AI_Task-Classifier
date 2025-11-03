@@ -40,14 +40,14 @@ class RAGService:
     def index_task(self, req: IndexTaskRequest):
         """Save or update a task with all its details."""
 
-        merged = " \n".join([f for f in [req.title, req.user_description, req.ai_description or None] if f])
+        merged = " \n".join([f for f in [req.task_title, req.user_description or None] if f])
         chunks = chunk_text(merged)
         items = [{
             "id": f"task-{req.taskId}-{i}",
             "text": ch,
             "metadata": {
                 "projectId": req.projectId, "type": "task",
-                "taskId": req.taskId, "title": req.title,
+                "taskId": req.taskId, "title": req.task_title,
                 "status": req.status, "epic": req.epic,
                 # "version": req.version, 
                 "hash": sha256_of(ch),

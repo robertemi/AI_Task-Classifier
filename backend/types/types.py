@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, Literal, Dict
+from typing import List, Optional, Literal, Dict, Any
 from pydantic import BaseModel, Field
 
 TaskStatus = Literal["created", "todo", "in_progress", "in_review", "done", "archived"]
@@ -9,26 +9,26 @@ class IndexProjectRequest(BaseModel):
     userId: int
     name: str
     description: str
-    status: TaskStatus = "todo"
+    status: TaskStatus = "created"
     # version: int = 1
 
 class IndexTaskRequest(BaseModel):
     projectId: int
     taskId: Optional[int] = None
-    title: str
+    task_title: str
     user_description: str
     epic: Optional[str] = None
-    status: TaskStatus = "todo"
+    status: TaskStatus = "created"
     # version: int = 1
 
 class IndexEnrichedTaskRequest(BaseModel):
     projectId: int
     taskId: Optional[int] = None
-    title: str
+    task_title: str
     user_description: str
     ai_description: str
     epic: Optional[str] = None
-    status: TaskStatus = 'todo'
+    status: TaskStatus = "created"
 
 class RetrieveRequest(BaseModel):
     projectId: int
@@ -53,7 +53,7 @@ class EnrichTaskRequest(BaseModel):
     taskId: Optional[int] = None
     projectId: int
     task_title: str
-    task_description: str
+    user_description: str
     # expected_version: int
 
 class EnrichResult(BaseModel):
@@ -62,3 +62,9 @@ class EnrichResult(BaseModel):
     # confidence: float = 0.0
     used_context_ids: List[str] = Field(default_factory=list),
     used_context_text: str
+
+
+class IndexResponse(BaseModel):
+    ok: bool
+    data: Optional[Dict[str, Any]] = None
+    detail: Optional[str] = None
