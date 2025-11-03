@@ -12,12 +12,14 @@ from backend.types.types import (
 from backend.rag.retriever import RAGService
 from backend.types.types import EnrichTaskRequest
 from backend.model.model import enrich_task_details
+from backend.service.project_service import ProjectService
 
 
 _rag = RAGService()
 _rag_init_error = None
 
 router = APIRouter(prefix="/index", tags=["indexing"])
+_project_service = ProjectService()
 
 
 @router.get("/health", response_model=IndexResponse)
@@ -32,13 +34,20 @@ def health() -> IndexResponse:
 
 @router.post("/project", response_model=IndexResponse)
 def index_project(req: IndexProjectRequest) -> IndexResponse:
-    if _rag is None:
-        raise HTTPException(status_code=500, detail=f"RAGService indisponibil: {_rag_init_error}")
     try:
-        result = _rag.index_project(req)
-        return IndexResponse(ok=True, data=result)
+        project_obj = _project_service.create_project(req)
+
+        rag_result = None
+        if _rag is not None:
+            try:
+                rag_result = _rag.index_project(req)
+            except Exception as e:
+                print(f"[WARN] RAG index failed: {e}")
+
+        return IndexResponse(ok=True, data={"project": project_obj, "rag_status": "done" if rag_result else "skipped"})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Project indexing failed: {e}") from e
+        raise HTTPException(status_code=500, detail=f"Project creation failed: {e}") from e
+
 
 
 @router.post("/task/enrich_and_index", response_model=IndexResponse)
