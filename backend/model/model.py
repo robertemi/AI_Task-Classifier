@@ -6,8 +6,9 @@ import httpx
 
 from backend.rag.retriever import RAGService
 from backend.types.types import (
-    RetrieveRequest,
-    IndexTaskRequest
+    IndexEnrichedTaskRequest,
+    IndexTaskRequest,
+    EnrichResult
 )
 
 
@@ -60,23 +61,21 @@ Returns:
 
 
 async def enrich_task_details(
-        projectId: int,
-        task_title: str,
-        task_description: str
+        req: IndexTaskRequest
 ):
     
     rag = RAGService()
 
-    project_text = rag.get_project_by_id(projectId)
+    project_text = rag.get_project_by_id(req.projectId)
 
-    previous_tasks = rag.get_previous_tasks(projectId)
+    previous_tasks = rag.get_previous_tasks(req.projectId)
     previous_tasks_text = "\n\n".join(previous_tasks)
 
     # combined project details and previous tasks into context
     context = (
         f"PROJECT OVERVIEW:\n{project_text}\n\n"
         f"PREVIOUS TASKS:\n{previous_tasks_text}\n\n"
-        f"NEW TASK:\ntask_Title: {task_title}\nDescription: {task_description}\n"
+        f"NEW TASK:\ntask_Title: {req.title}\nDescription: {req.user_description}\n"
     )
 
     async with httpx.AsyncClient() as client:
@@ -103,6 +102,15 @@ async def enrich_task_details(
         )
 
         data = response.json()
+
+        if response.status_code != 200:
+            print('OpenRouter error')
+            raise RuntimeError('Openrouter API Error')
+        
+        if 'choices' not in data:
+            print('Unexpected Openrouter error')
+            raise RuntimeError('Unexpected Openrouter response')
+
         ai_output = data["choices"][0]["message"]["content"].strip()
 
         # also extract story points
@@ -121,13 +129,30 @@ async def enrich_task_details(
             flags=re.IGNORECASE
         ).strip()
 
+
+        pretty_description = (
+            ai_description
+            .replace("**", "")                 
+            .replace("\\n", "\n")              
+            .replace("\n\n", "\n")             
+            .strip()
+        )
+
+        pretty_context_text = (
+            context
+            .replace("\\n", "\n")     # fix double-escaped newlines
+            .replace("\n\n", "\n")    # collapse extra line breaks
+            .replace("**", "")        # remove markdown bold markers
+            .strip()
+        )
+
         # persists newly created task to RAG
 
-        enriched_task = IndexTaskRequest(
-            projectId=projectId,
+        enriched_task = IndexEnrichedTaskRequest(
+            projectId=req.projectId,
             taskId=None, # generated later when inserting into the DB,
-            title=task_title,
-            user_description=task_description,
+            title=req.title,
+            user_description=req.user_description,
             ai_description=ai_description,
             status='todo',
             version=1
@@ -138,9 +163,9 @@ async def enrich_task_details(
         # TODO delegate insertion of the new task
 
         # just for logging purposes
-        return {
-            'ai_description': ai_description,
-            'story_points': ai_story_points,
-            'used_context': ['project_text', 'previous_tasks']
-        }
-
+        return EnrichResult(
+            ai_description=pretty_description,
+            story_points=ai_story_points,
+            used_context_ids=['project_text', 'previous_tasks_text'],
+            used_context_text=pretty_context_text
+        ).model_dump()
