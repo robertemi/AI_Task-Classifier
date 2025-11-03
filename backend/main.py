@@ -1,8 +1,10 @@
+import json
 from fastapi import FastAPI, APIRouter
+from fastapi.responses import JSONResponse
 
 from backend.model.model import enrich_task_details
 from backend.rag.retriever import RAGService
-from backend.types.types import IndexProjectRequest
+from backend.types.types import IndexProjectRequest, EnrichTaskRequest , IndexTaskRequest
 
 import asyncio
 from contextlib import asynccontextmanager
@@ -12,4 +14,30 @@ app = FastAPI()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # create mock project and task Data 
-    pass
+    rag = RAGService()
+
+    rag.index_project(IndexProjectRequest(
+        projectId=1,
+        userId=101,
+        name="AI Task Management Dashboard",
+        description=(
+            "A web-based platform that helps software teams automatically generate, "
+            "enrich, and organize development tasks using AI. "
+            "The system integrates with Jira and GitHub to streamline backlog refinement "
+            "and estimate story points intelligently based on past work patterns."
+        ),
+        status="in_progress"
+        )
+    )
+
+    rag.index_task(IndexTaskRequest(
+        projectId=1,
+        taskId=2,
+        title='Login Screen',
+        user_description='Create login screen'
+    ))
+
+
+
+
+

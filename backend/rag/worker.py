@@ -1,8 +1,8 @@
 from __future__ import annotations
 from fastapi import BackgroundTasks
-from .retriever import RAGService
-from .model_provider import ModelProvider
-from ..types.types import EnrichTaskRequest, IndexTaskRequest, RetrieveRequest
+from retriever import RAGService
+from model_provider import ModelProvider
+from backend.types.types import EnrichTaskRequest, IndexTaskRequest, RetrieveRequest
 
 class EnrichmentWorker:
     """

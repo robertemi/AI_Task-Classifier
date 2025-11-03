@@ -17,10 +17,18 @@ class IndexTaskRequest(BaseModel):
     taskId: Optional[int] = None
     title: str
     user_description: str
-    ai_description: Optional[str] = None
     epic: Optional[str] = None
     status: TaskStatus = "todo"
     # version: int = 1
+
+class IndexEnrichedTaskRequest(BaseModel):
+    projectId: int
+    taskId: Optional[int] = None
+    title: str
+    user_description: str
+    ai_description: str
+    epic: Optional[str] = None
+    status: TaskStatus = 'todo'
 
 class RetrieveRequest(BaseModel):
     projectId: int
@@ -42,11 +50,15 @@ class RetrieveResponse(BaseModel):
     retrieval_stats: Dict[str, object]
 
 class EnrichTaskRequest(BaseModel):
-    taskId: int
-    expected_version: int
+    taskId: Optional[int] = None
+    projectId: int
+    task_title: str
+    task_description: str
+    # expected_version: int
 
 class EnrichResult(BaseModel):
     ai_description: str
     story_points: int = Field(..., description="One of {1,2,3,5,8,13}")
-    confidence: float = 0.0
-    used_context_ids: List[str] = Field(default_factory=list)
+    # confidence: float = 0.0
+    used_context_ids: List[str] = Field(default_factory=list),
+    used_context_text: str
