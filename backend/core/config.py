@@ -1,6 +1,13 @@
 from __future__ import annotations
 import os
 from dataclasses import dataclass
+from supabase import create_client, Client
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 
 @dataclass
 class Settings:
@@ -18,3 +25,7 @@ class Settings:
 def get_settings():
     settings = Settings()
     return settings
+
+def get_supabase_client() -> Client:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    return supabase
