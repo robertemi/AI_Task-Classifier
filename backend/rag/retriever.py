@@ -102,7 +102,7 @@ class RAGService:
     Deterministric project retrieval
     
     """
-    def get_project_by_id(self, projectId: int):
+    def get_project_by_id(self, projectId: str):
         """
         Retrieve the project chunks (deterministically) for a given projectId.
         """
@@ -121,7 +121,7 @@ class RAGService:
     
     """
 
-    def get_previous_tasks(self, projectId: int):
+    def get_previous_tasks(self, projectId: str):
         """
         Retrieve all previously indexed task chunks under the given projectId.
         """

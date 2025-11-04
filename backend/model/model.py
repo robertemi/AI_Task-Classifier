@@ -10,6 +10,7 @@ from backend.types.types import (
     IndexTaskRequest,
     EnrichResult
 )
+from backend.service.task_service import TaskService
 
 
 load_dotenv()
@@ -63,6 +64,8 @@ Returns:
 async def enrich_task_details(
         req: IndexTaskRequest
 ):
+    
+    service = TaskService()
     
     rag = RAGService()
 
@@ -161,6 +164,7 @@ async def enrich_task_details(
         rag.index_task(enriched_task)
 
         # TODO delegate insertion of the new task
+        service.create_task(enriched_task)
 
         # just for logging purposes
         return EnrichResult(
