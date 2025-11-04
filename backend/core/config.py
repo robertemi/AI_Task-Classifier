@@ -8,6 +8,7 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
 
 @dataclass
 class Settings:
@@ -27,5 +28,5 @@ def get_settings():
     return settings
 
 def get_supabase_client() -> Client:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     return supabase
