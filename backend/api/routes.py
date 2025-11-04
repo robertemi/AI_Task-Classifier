@@ -1,6 +1,4 @@
 import json
-
-
 from fastapi import APIRouter, HTTPException
 
 from backend.types.types import (
