@@ -19,7 +19,7 @@ export function Navbar({ searchPlaceholder, onLogoClick }: HeaderProps) {
                 <span className="absolute -bottom-1 left-0 w-0 h-[3px] bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 group-hover:w-full transition-all duration-300 ease-out rounded-full"></span>
             </button>
 
-            <div className="flex-1 max-w-3xl">
+            <div className="flex-1">
                 <div className="relative">
                     <input
                         type="text"
@@ -29,13 +29,13 @@ export function Navbar({ searchPlaceholder, onLogoClick }: HeaderProps) {
                 </div>
             </div>
 
-            <div className="ml-auto flex items-center gap-4">
+            <div className="flex items-center gap-4">
                 <span className="text-white text-[15px] font-medium">{user?.email || "Guest"}</span>
                 <button
                     onClick={signOut}
-                    className="flex items-center gap-1 text-sm text-gray-300 hover:text-white transition-colors"
+                    className="group flex items-center gap-1 text-sm text-gray-300 hover:text-red-400 transition-colors duration-300"
                 >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="w-5 h-5 transition-all duration-300 group-hover:scale-110 group-hover:drop-shadow-[0_0_4px_#ef4444]" />
                 </button>
             </div>
         </header>

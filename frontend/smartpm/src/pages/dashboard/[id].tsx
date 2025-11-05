@@ -16,7 +16,7 @@ export default function Dashboard() {
 
     return (
         <>
-            <DashboardPage projectId={Number(id)} onBack={() => router.push("/projects")} />
+            <DashboardPage projectId={id as string} onBack={() => router.push("/projects")} />
         </>
     )
 }
