@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from .chunking import chunk_text, normalize_text, sha256_of
 from .vector_store import VectorStore
 from ..types.types import (
-    IndexProjectRequest, IndexTaskRequest,
+    IndexProjectRequest, IndexEnrichedTaskRequest,
     RetrieveRequest, RetrieveResponse, ContextChunk
 )
 
@@ -37,7 +37,7 @@ class RAGService:
         return {"chunks_indexed": inserted, "skipped": 0}
 
 
-    def index_task(self, req: IndexTaskRequest):
+    def index_task(self, req: IndexEnrichedTaskRequest):
         """Save or update a task with all its details."""
 
         merged = " \n".join([f for f in [req.task_title, req.user_description or None] if f])
@@ -49,6 +49,7 @@ class RAGService:
                 "projectId": req.projectId, "type": "task",
                 "taskId": req.taskId, "title": req.task_title,
                 "status": req.status, "epic": req.epic,
+                "ai_description": req.ai_description,
                 # "version": req.version, 
                 "hash": sha256_of(ch),
             },
