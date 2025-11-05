@@ -1,5 +1,6 @@
 import json
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 
 from backend.types.types import (
     EnrichTaskRequest,
@@ -35,14 +36,15 @@ def index_project(req: IndexProjectRequest) -> IndexResponse:
     try:
         project_obj = _project_service.create_project(req)
 
-        rag_result = None
-        if _rag is not None:
-            try:
-                rag_result = _rag.index_project(req)
-            except Exception as e:
-                print(f"[WARN] RAG index failed: {e}")
+        if project_obj:
+            return JSONResponse(content={
+                "succes": True
+            })
+        else:
+            return JSONResponse(content={
+                "succes": False
+            })
 
-        return IndexResponse(ok=True, data={"project": project_obj, "rag_status": "done" if rag_result else "skipped"})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Project creation failed: {e}") from e
 
@@ -61,27 +63,14 @@ async def enrich_and_index(req: EnrichTaskRequest) -> IndexResponse:
                 taskId=req.taskId,
                 user_description=req.user_description
             ))
-
-        if hasattr(enriched, "model_dump"):
-            enriched = enriched.model_dump()
-        elif hasattr(enriched, "dict"):
-            enriched = enriched.dict()
-
-        ai_text = (
-            enriched.get("ai_description")
-            or enriched.get("enriched_text")
-            or enriched
-        )
-
-
-        if isinstance(ai_text, str):
-            try:
-                ai_text_obj = json.loads(ai_text)
-                ai_text = ai_text_obj.get("description", ai_text)
-            except json.JSONDecodeError:
-                pass
-
-
-        return IndexResponse(ok=True, data={"enriched": ai_text})
+        
+        if enriched:
+            return JSONResponse(content={
+                "succes": True
+            })
+        else:
+            return JSONResponse(content={
+                "success": False
+            })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Enrich+Index failed: {e}") from e

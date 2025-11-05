@@ -161,9 +161,7 @@ async def enrich_task_details(
             version=1
         )
 
-        rag.index_task(enriched_task)
-
-        # TODO delegate insertion of the new task
+        # insert new task into DB
         service.create_task(enriched_task)
 
         # just for logging purposes
