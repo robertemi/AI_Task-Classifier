@@ -12,7 +12,7 @@ interface CreateTaskModalProps {
 export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: CreateTaskModalProps) {
   const [task_title, setTaskTitle] = useState('');
   const [user_description, setUserDescription] = useState('');
-  const [prompt, setPrompt] = useState('');
+  const [model, setModel] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,8 +32,8 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: C
           projectId,
           task_title,
           user_description,
-          prompt,
           status: "todo",
+            model,
         }),
       });
 
@@ -73,13 +73,6 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: C
               onChange={(e) => setUserDescription(e.target.value)}
               className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 transition-all"
               rows={4}
-            />
-            <textarea
-              placeholder="Prompt for AI Agent"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 transition-all"
-              rows={2}
             />
           </div>
           {error && <p className="text-red-400 text-sm mt-4">{error}</p>}
