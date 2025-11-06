@@ -22,7 +22,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: C
     setError(null);
 
     try {
-      const response = await fetch('https://1311f8253fec.ngrok-free.app/index/task/enrich_and_index', {
+      const response = await fetch('https://ai-task-classifier.onrender.com/index/task/enrich_and_index', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
