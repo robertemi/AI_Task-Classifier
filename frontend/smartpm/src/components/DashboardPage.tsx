@@ -191,15 +191,16 @@ function StatusColumn({ title, count, tasks, accentColor, borderColor, onDragOve
                     <div key={task.id} draggable onDragStart={() => onDragStart(task)} className="cursor-grab active:cursor-grabbing">
                         <TaskCard
                             title={task.title}
-                            epic={task.description || ""}
+                            userDescription={task.description || ""}
                             priority={task.story_points || 0}
+                            ai_description={task.ai_description}
                         />
                     </div>
                 ))}
                 {onAddTaskClick && (
                     <button onClick={onAddTaskClick} className="w-full group relative bg-black/20 backdrop-blur-sm rounded-2xl p-5 border-2 border-dashed border-white/20 hover:border-purple-400/50 transition-all duration-300 text-center opacity-60 hover:opacity-100">
                         <div className="relative">
-                            <div className="text-gray-400 group-hover:text-white text-[15px] font-medium transition-colors">+ Add a Ticket</div>
+                            <div className="text-gray-400 group-hover:text-white text-[15px] font-medium transition-colors">+ Add a Task</div>
                         </div>
                     </button>
                 )}
