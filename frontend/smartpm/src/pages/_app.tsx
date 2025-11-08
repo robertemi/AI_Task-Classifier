@@ -16,7 +16,6 @@ export default function MyApp({ Component, pageProps }: AppProps) {
                 {!shouldHideNavbar && (
                     <Navbar
                         searchPlaceholder="Search..."
-                        userName="Guest"
                         onLogoClick={() => router.push("/")}
                     />
                 )}
