@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 
@@ -12,8 +12,25 @@ interface CreateTaskModalProps {
 export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: CreateTaskModalProps) {
   const [task_title, setTaskTitle] = useState('');
   const [user_description, setUserDescription] = useState('');
+  const [model, setModel] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +39,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: C
     setError(null);
 
     try {
-      const response = await fetch('https://1311f8253fec.ngrok-free.app/index/task/enrich_and_index', {
+      const response = await fetch('https://ai-task-classifier.onrender.com/index/task/enrich_and_index', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -32,6 +49,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: C
           task_title,
           user_description,
           status: "todo",
+            model,
         }),
       });
 

@@ -3,6 +3,7 @@ import { TaskCard } from "./TaskCard";
 import Aurora from "./Aurora";
 import { supabase } from "@/lib/supabaseClient";
 import { CreateTaskModal } from "./CreateTaskModal";
+import { TaskDetailsModal } from "./TaskDetailsModal";
 
 interface Task {
     id: string;
@@ -33,7 +34,9 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
     const [projectDetails, setProjectDetails] = useState<ProjectDetails | null>(null);
     const [loadingProject, setLoadingProject] = useState(true);
     const [errorProject, setErrorProject] = useState<string | null>(null);
-    const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+    const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
+    const [isTaskDetailsModalOpen, setIsTaskDetailsModalOpen] = useState(false);
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
     const fetchProjectDetails = async () => {
         if (!projectId) return;
@@ -104,11 +107,16 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
 
     const handleTaskCreated = () => {
         fetchTasks();
-        setIsTaskModalOpen(false);
+        setIsCreateTaskModalOpen(false);
+    };
+
+    const handleTaskClick = (task: Task) => {
+        setSelectedTask(task);
+        setIsTaskDetailsModalOpen(true);
     };
 
     const columnConfig = [
-        { title: "To Do", status: "todo" as const, tasks: tasksByStatus.todo, accentColor: "from-slate-500/20 to-transparent", borderColor: "border-slate-400/40", onAddTaskClick: () => setIsTaskModalOpen(true) },
+        { title: "To Do", status: "todo" as const, tasks: tasksByStatus.todo, accentColor: "from-slate-500/20 to-transparent", borderColor: "border-slate-400/40", onAddTaskClick: () => setIsCreateTaskModalOpen(true) },
         { title: "In Progress", status: "inProgress" as const, tasks: tasksByStatus.inProgress, accentColor: "from-blue-500/20 to-transparent", borderColor: "border-blue-400/40", onAddTaskClick: undefined },
         { title: "In Review", status: "inReview" as const, tasks: tasksByStatus.inReview, accentColor: "from-amber-500/20 to-transparent", borderColor: "border-amber-400/40", onAddTaskClick: undefined },
         { title: "Done", status: "done" as const, tasks: tasksByStatus.done, accentColor: "from-emerald-500/20 to-transparent", borderColor: "border-emerald-400/40", onAddTaskClick: undefined },
@@ -153,12 +161,14 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
                                 onDrop={() => handleDrop(config.status)}
                                 onDragStart={handleDragStart}
                                 onAddTaskClick={config.onAddTaskClick}
+                                onTaskClick={handleTaskClick}
                             />
                         ))}
                     </div>
                 </main>
             </div>
-            <CreateTaskModal isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} onTaskCreated={handleTaskCreated} projectId={projectId} />
+            <CreateTaskModal isOpen={isCreateTaskModalOpen} onClose={() => setIsCreateTaskModalOpen(false)} onTaskCreated={handleTaskCreated} projectId={projectId} />
+            <TaskDetailsModal isOpen={isTaskDetailsModalOpen} onClose={() => setIsTaskDetailsModalOpen(false)} task={selectedTask} />
         </>
     );
 }
@@ -174,9 +184,10 @@ interface StatusColumnProps {
     onDrop: () => void;
     onDragStart: (task: Task) => void;
     onAddTaskClick?: () => void;
+    onTaskClick: (task: Task) => void;
 }
 
-function StatusColumn({ title, count, tasks, accentColor, borderColor, onDragOver, onDrop, onDragStart, onAddTaskClick }: StatusColumnProps) {
+function StatusColumn({ title, count, tasks, accentColor, borderColor, onDragOver, onDrop, onDragStart, onAddTaskClick, onTaskClick }: StatusColumnProps) {
     return (
         <div className="bg-black/20 backdrop-blur-sm rounded-2xl p-4 border-2 border-white/10 shadow-lg min-h-[500px]" onDragOver={onDragOver} onDrop={onDrop}>
             <div className={`relative bg-black/30 backdrop-blur-xl rounded-2xl px-5 py-4 mb-4 flex items-center justify-between shadow-lg border ${borderColor} overflow-hidden`}>
@@ -191,15 +202,15 @@ function StatusColumn({ title, count, tasks, accentColor, borderColor, onDragOve
                     <div key={task.id} draggable onDragStart={() => onDragStart(task)} className="cursor-grab active:cursor-grabbing">
                         <TaskCard
                             title={task.title}
-                            epic={task.description || ""}
                             priority={task.story_points || 0}
+                            onClick={() => onTaskClick(task)}
                         />
                     </div>
                 ))}
                 {onAddTaskClick && (
                     <button onClick={onAddTaskClick} className="w-full group relative bg-black/20 backdrop-blur-sm rounded-2xl p-5 border-2 border-dashed border-white/20 hover:border-purple-400/50 transition-all duration-300 text-center opacity-60 hover:opacity-100">
                         <div className="relative">
-                            <div className="text-gray-400 group-hover:text-white text-[15px] font-medium transition-colors">+ Add a Ticket</div>
+                            <div className="text-gray-400 group-hover:text-white text-[15px] font-medium transition-colors">+ Add a Task</div>
                         </div>
                     </button>
                 )}
