@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthProvider';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -16,6 +16,22 @@ export function CreateProjectModal({ isOpen, onClose, onProjectCreated }: Create
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -27,7 +43,7 @@ export function CreateProjectModal({ isOpen, onClose, onProjectCreated }: Create
     setError(null);
 
     try {
-      const response = await fetch('https://1311f8253fec.ngrok-free.app/index/project', {
+      const response = await fetch('https://ai-task-classifier.onrender.com/index/project', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
