@@ -1,5 +1,5 @@
+import { useEffect } from 'react';
 import { X } from 'lucide-react';
-import TextType from './TextType';
 
 interface Task {
     id: string;
@@ -18,6 +18,22 @@ interface TaskDetailsModalProps {
 }
 
 export function TaskDetailsModal({ isOpen, onClose, task }: TaskDetailsModalProps) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen || !task) return null;
 
   return (
@@ -39,11 +55,7 @@ export function TaskDetailsModal({ isOpen, onClose, task }: TaskDetailsModalProp
                 <div>
                     <h3 className="text-indigo-300 font-semibold mb-2">AI Generated Description</h3>
                     <div className="text-indigo-200 font-mono bg-white/5 p-3 rounded-lg">
-                        <TextType 
-                            text={task.ai_description}
-                            typingSpeed={15}
-                            loop={false}
-                        />
+                        <p>{task.ai_description}</p>
                     </div>
                 </div>
             )}
