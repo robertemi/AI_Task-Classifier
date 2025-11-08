@@ -9,9 +9,9 @@ from backend.types.types import (
     IndexTaskRequest
 )
 from backend.rag.retriever import RAGService
-from backend.types.types import EnrichTaskRequest
 from backend.model.model import enrich_task_details
 from backend.service.project_service import ProjectService
+from backend.service.task_service import TaskService
 
 
 _rag = RAGService()
@@ -19,6 +19,7 @@ _rag_init_error = None
 
 router = APIRouter(prefix="/index", tags=["indexing"])
 _project_service = ProjectService()
+_task_service = TaskService()
 
 
 @router.get("/health", response_model=IndexResponse)
@@ -49,6 +50,46 @@ def index_project(req: IndexProjectRequest) -> IndexResponse:
         raise HTTPException(status_code=500, detail=f"Project creation failed: {e}") from e
 
 
+@router.put("/project/{project_id}", response_model=IndexResponse)
+def update_project(project_id: str, req: IndexProjectRequest) -> IndexResponse:
+    try:
+        updated = _project_service.update_project(project_id, req)
+
+        if not updated:
+            raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+
+        return IndexResponse(
+            ok=True,
+            data={"projectId": project_id},
+            detail="Project updated successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Project update failed: {e}") from e
+
+
+@router.delete("/project/{project_id}", response_model=IndexResponse)
+def delete_project(project_id: str) -> IndexResponse:
+    try:
+        deleted = _project_service.delete_project(project_id)
+
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+
+        return IndexResponse(
+            ok=True,
+            data={"projectId": project_id},
+            detail="Project deleted successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Project deletion failed: {e}") from e
+
+
 
 @router.post("/task/enrich_and_index", response_model=IndexResponse)
 async def enrich_and_index(req: EnrichTaskRequest) -> IndexResponse:
@@ -74,3 +115,43 @@ async def enrich_and_index(req: EnrichTaskRequest) -> IndexResponse:
             })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Enrich+Index failed: {e}") from e
+
+
+@router.put("/task/{task_id}", response_model=IndexResponse)
+def update_task(task_id: str, req: IndexTaskRequest) -> IndexResponse:
+    try:
+        updated = _task_service.update_task(task_id, req)
+
+        if not updated:
+            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+        return IndexResponse(
+            ok=True,
+            data={"taskId": task_id},
+            detail="Task updated successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Task update failed: {e}") from e
+
+
+@router.delete("/task/{task_id}", response_model=IndexResponse)
+def delete_task(task_id: str) -> IndexResponse:
+    try:
+        deleted = _task_service.delete_task(task_id)
+
+        if not deleted:
+            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+        return IndexResponse(
+            ok=True,
+            data={"taskId": task_id},
+            detail="Task deleted successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Task deletion failed: {e}") from e
