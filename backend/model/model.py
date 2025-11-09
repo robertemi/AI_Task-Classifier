@@ -35,7 +35,11 @@ SYSTEM_PROMPT = (
     "5. Output only the final, improved task description — no explanations or commentary.\n"
 )
 
-
+model_providers = {
+    1 : 'deepseek/deepseek-chat-v3.1:free',
+    2 : 'openai/gpt-oss-20b:free',
+    3 : 'meta-llama/llama-3.3-8b-instruct:free'
+}
 
 async def get_project_context(project_id: str):
     rag = RAGService()
@@ -109,7 +113,7 @@ async def enrich_task_details(
                 "Content-Type": "application/json",
             },
             data=json.dumps({
-                "model": "deepseek/deepseek-chat-v3.1:free",
+                "model": model_providers[req.selected_model],
                 "messages": [
                 {
                     "role": "system",
@@ -128,7 +132,7 @@ async def enrich_task_details(
 
         if response.status_code != 200:
             print('OpenRouter error')
-            raise RuntimeError('Openrouter API Error')
+            raise RuntimeError(f'Openrouter API Error: {data}')
         
         if 'choices' not in data:
             print('Unexpected Openrouter error')
