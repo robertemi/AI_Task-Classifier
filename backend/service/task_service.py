@@ -1,20 +1,31 @@
 from __future__ import annotations
 
-from backend.types.types import IndexEnrichedTaskRequest, IndexTaskRequest
+from backend.types.types import (
+    IndexEnrichedTaskRequest,
+    EditEnrichedTaskRequest,
+    DeleteEnrichedTaskRequest
+)
 from backend.core.config import get_supabase_client
 from backend.rag.retriever import RAGService
+from backend.core.config import get_supabase_client
 
 
 class TaskService:
 
-    def __init__(self) -> None:
-        self._client = get_supabase_client()
+    def __init__(self):
         self._rag = RAGService()
+        self._client = None
 
-    def create_task(self, req: IndexEnrichedTaskRequest) -> bool:
+    async def ensure_client(self):
+        if self._client is None:
+            self._client = await get_supabase_client()
+
+    async def create_task(self, req: IndexEnrichedTaskRequest):
+        await self.ensure_client()
         try:
             response = (
-                self._client.table("tasks")
+                self._client
+                .table("tasks")
                 .insert(
                     {
                         "project_id": req.projectId,
@@ -25,13 +36,14 @@ class TaskService:
                         "status": req.status,
                     }
                 )
-                .execute()
             )
+
+            response = await response.execute()
 
             if response.data:
                 new_id = response.data[0]["id"]
 
-                # indexăm în RAG cu id-ul real din DB
+                # save newly created task in RAG
                 self._rag.index_task(
                     IndexEnrichedTaskRequest(
                         taskId=new_id,
@@ -52,21 +64,28 @@ class TaskService:
             print(f"Unhandled exception in insert task: {e}")
             return False
 
-    def update_task(self, task_id: str, req: IndexTaskRequest) -> bool:
+    async def update_task(self, req: EditEnrichedTaskRequest):
+        await self.ensure_client()
         try:
             update_data = {
-                "project_id": req.projectId,
-                "title": req.task_title,
-                "description": req.user_description,
-                "status": req.status,
+                **({"project_id": req.projectId}),
+                **({"id": req.taskId}),
+                **({"title": req.task_title} if req.task_title else {}),
+                **({"description": req.user_description} if req.user_description else {}),
+                **({"ai_description": req.ai_description} if req.ai_description else {})
             }
 
             response = (
-                self._client.table("tasks")
+                self._client
+                .table("tasks")
                 .update(update_data)
-                .eq("id", task_id)
-                .execute()
+                .match({
+                    "id": req.taskId,
+                    "project_id": req.projectId
+                })
             )
+
+            response = await response.execute()
 
             print("update_task supabase response:", response)
 
@@ -75,43 +94,49 @@ class TaskService:
 
                 ai_desc = row.get("ai_description") or ""
 
-                self._rag.index_task(
-                    IndexEnrichedTaskRequest(
-                        taskId=task_id,
-                        projectId=req.projectId,
-                        task_title=req.task_title,
-                        user_description=req.user_description,
-                        ai_description=ai_desc,
-                        epic=getattr(req, "epic", None),
-                        status=req.status,
-                    )
-                )
+                # TODO call edit task method from RAG
+                # self._rag.index_task(
+                #     IndexEnrichedTaskRequest(
+                #         taskId=task_id,
+                #         projectId=req.projectId,
+                #         task_title=req.task_title,
+                #         user_description=req.user_description,
+                #         ai_description=ai_desc,
+                #         epic=getattr(req, "epic", None),
+                #         status=req.status,
+                #     )
+                # )
                 return True
 
-            print(f"Update task {task_id} failed: not found")
+            print(f"Update task {req.taskId} or User has no permission on given task")
             return False
 
         except Exception as e:
             print(f"Unhandled exception in update task: {e}")
             return False
 
-    def delete_task(self, task_id: str) -> bool:
+    async def delete_task(self, req: DeleteEnrichedTaskRequest):
+        await self.ensure_client()
         try:
             response = (
-                self._client.table("tasks")
+                self._client
+                .table("tasks")
                 .delete()
-                .eq("id", task_id)
-                .execute()
+                .match({
+                    "id": req.taskId,
+                    "project_id": req.projectId
+                })
             )
+
+            response = await response.execute()
 
             print("delete_task supabase response:", response)
 
             if response.data and len(response.data) > 0:
-                # aici poți apela delete și în RAG dacă ai
-                # self._rag.delete_task(task_id)
+                # TODO call edit task method from RAG
                 return True
 
-            print(f"Delete task {task_id} failed: not found")
+            print(f"Delete task {req.taskId} failed: not found")
             return False
 
         except Exception as e:
