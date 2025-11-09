@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import List, Optional, Literal, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 TaskStatus = Literal["created", "todo", "in_progress", "in_review", "done", "archived"]
 
@@ -11,6 +11,22 @@ class IndexProjectRequest(BaseModel):
     description: str
     status: Optional[str] = None
     # version: int = 1
+
+class EditProjectRequest(BaseModel):
+    projectId: str
+    userId: str
+    name: str | None = None
+    description: str | None = None
+
+    @model_validator(mode='after')
+    def check_fields(cls, values):
+        if not values.name and not values.description:
+            raise ValueError("Either 'name' or 'description' must be provided.")
+        return values 
+
+class DeleteProjectRequest(BaseModel):
+    projectId: str
+    userId: str
 
 class IndexTaskRequest(BaseModel):
     projectId: Optional[str] = None
@@ -29,6 +45,26 @@ class IndexEnrichedTaskRequest(BaseModel):
     ai_description: str
     epic: Optional[str] = None
     status: Optional[str] = None
+
+
+class EditEnrichedTaskRequest(BaseModel):
+    projectId: str
+    taskId: str
+    task_title: str | None = None
+    user_description: str | None = None
+    ai_description: str | None = None
+
+    @model_validator(mode='after')
+    def check_fields(cls, values):
+        if not values.task_title and not values.user_description and not values.ai_description:
+            raise ValueError("Either 'task title' or 'user description' or 'ai description' must be provided.")
+        return values 
+
+
+class DeleteEnrichedTaskRequest(BaseModel):
+    projectId: str
+    taskId: str
+
 
 class RetrieveRequest(BaseModel):
     projectId: str

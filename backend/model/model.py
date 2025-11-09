@@ -37,6 +37,34 @@ SYSTEM_PROMPT = (
 
 
 
+async def get_project_context(project_id: str):
+    rag = RAGService()
+
+    project_text = rag.get_project_by_id(project_id)
+
+    return project_text
+
+async def get_previous_tasks_context(project_id: str):
+    rag = RAGService()
+
+    previous_tasks = rag.get_previous_tasks(project_id)
+    previous_tasks_text = "\n\n".join(previous_tasks)
+
+    return previous_tasks_text
+
+async def get_context(project_id: str, new_task_title: str, new_task_user_description: str):
+    project_text = await get_project_context(project_id)
+    previous_tasks_text = await get_previous_tasks_context(project_id)
+
+    context = (
+        f"PROJECT OVERVIEW:\n{project_text}\n\n"
+        f"PREVIOUS TASKS:\n{previous_tasks_text}\n\n"
+        f"NEW TASK:\ntask_Title: {new_task_title}\nDescription: {new_task_user_description}\n"
+    )
+
+    return context
+
+
 """
 Enrich and persist a newly created AI task.
 
@@ -67,18 +95,10 @@ async def enrich_task_details(
     
     service = TaskService()
     
-    rag = RAGService()
-
-    project_text = rag.get_project_by_id(req.projectId)
-
-    previous_tasks = rag.get_previous_tasks(req.projectId)
-    previous_tasks_text = "\n\n".join(previous_tasks)
-
-    # combined project details and previous tasks into context
-    context = (
-        f"PROJECT OVERVIEW:\n{project_text}\n\n"
-        f"PREVIOUS TASKS:\n{previous_tasks_text}\n\n"
-        f"NEW TASK:\ntask_Title: {req.task_title}\nDescription: {req.user_description}\n"
+    context = await get_context(
+        req.projectId,
+        req.task_title,
+        req.user_description
     )
 
     async with httpx.AsyncClient() as client:
@@ -162,7 +182,7 @@ async def enrich_task_details(
         )
 
         # insert new task into DB
-        service.create_task(enriched_task)
+        await service.create_task(enriched_task)
 
         # just for logging purposes
         return EnrichResult(

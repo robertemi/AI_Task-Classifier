@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
 from dataclasses import dataclass
-from supabase import create_client, Client
+from supabase import acreate_client, AsyncClient
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,6 +27,6 @@ def get_settings():
     settings = Settings()
     return settings
 
-def get_supabase_client() -> Client:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+async def get_supabase_client() -> AsyncClient:
+    supabase: AsyncClient = await acreate_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
     return supabase

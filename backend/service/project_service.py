@@ -1,17 +1,26 @@
 from __future__ import annotations
 
 from backend.core.config import get_supabase_client
-from backend.types.types import IndexProjectRequest
+from backend.types.types import (
+    IndexProjectRequest,
+    EditProjectRequest,
+    DeleteProjectRequest
+)
 from backend.rag.retriever import RAGService
+from backend.core.config import get_supabase_client
 
 class ProjectService:
 
     def __init__(self) -> None:
-        self._client = get_supabase_client() 
         self._rag = RAGService()
+        self._client = None
 
+    async def ensure_client(self):
+        if self._client is None:
+            self._client = await get_supabase_client()
 
-    def create_project(self, req: IndexProjectRequest) -> bool:
+    async def create_project(self, req: IndexProjectRequest):
+        await self.ensure_client()
         try:
             response = (
                 self._client.table('projects')
@@ -23,8 +32,8 @@ class ProjectService:
                         "description": req.description
                     }
                 )
-                .execute()
             )
+            response = await response.execute()
 
             if response.data:
                 new_id = response.data[0]['id']
@@ -45,55 +54,63 @@ class ProjectService:
         except Exception as e:
             print(f'Unhandled exception in insert project: {e}')
 
-    def update_project(self, project_id: str, req: IndexProjectRequest) -> bool:
+    async def update_project(self, req: EditProjectRequest):
+        await self.ensure_client()
         try:
+            update_data = {
+                **({"name": req.name} if req.name else {}),
+                **({"description": req.description} if req.description else {})
+            }
+
             response = (
-                self._client.table('projects')
-                .update(
-                    {
-                        "name": req.name,
-                        "description": req.description,
-                        "status": req.status,
-                    }
-                )
-                .eq("id", project_id)
-                .execute()
+                self._client
+                .table('projects')
+                .update(update_data)
+                .eq("id", req.projectId)
             )
+            response = await response.execute()
 
             if response.data:
-                self._rag.index_project(
-                    IndexProjectRequest(
-                        projectId=project_id,
-                        userId=req.userId,
-                        name=req.name,
-                        description=req.description,
-                        status=req.status,
-                    )
-                )
+                # TODO call edit project method from RAG
+
+                # self._rag.index_project(
+                #     IndexProjectRequest(
+                #         projectId=project_id,
+                #         userId=req.userId,
+                #         name=req.name,
+                #         description=req.description,
+                #         status=req.status,
+                #     )
+                # )
                 return True
             else:
-                print(f'Update project {project_id} failed: not found')
+                print(f'Update project {req.projectId} failed: not found')
                 return False
 
         except Exception as e:
             print(f'Unhandled exception in update project: {e}')
             return False
 
-    def delete_project(self, project_id: str) -> bool:
+    async def delete_project(self, req: DeleteProjectRequest):
+        await self.ensure_client()
         try:
             response = (
-                self._client.table('projects')
+                self._client
+                .table('projects')
                 .delete()
-                .eq("id", project_id)
-                .execute()
+                .match({
+                    "id": req.projectId,
+                    "user_id": req.userId
+                })
             )
 
+            response = await response.execute()
+
             if response.data:
-                # Dacă aveți funcție separată în RAG pentru delete, se poate apela aici.
-                # self._rag.delete_project(project_id)
+                # TODO call delete project method from RAG
                 return True
             else:
-                print(f'Delete project {project_id} failed: not found')
+                print(f'Delete project {req.projectId} failed: not found')
                 return False
 
         except Exception as e:
