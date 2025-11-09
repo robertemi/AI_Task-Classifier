@@ -124,8 +124,10 @@ async def enrich_and_index(req: EnrichTaskRequest) -> IndexResponse:
                 projectId=req.projectId,
                 task_title=req.task_title,
                 taskId=req.taskId,
-                user_description=req.user_description
-            ))
+                user_description=req.user_description,
+                selected_model=req.selected_model
+            )
+            )
         
         if enriched:
             return JSONResponse(content={

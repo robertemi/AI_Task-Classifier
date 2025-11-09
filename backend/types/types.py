@@ -35,6 +35,7 @@ class IndexTaskRequest(BaseModel):
     user_description: str
     epic: Optional[str] = None
     status: TaskStatus = "created"
+    selected_model: int
     # version: int = 1
 
 class IndexEnrichedTaskRequest(BaseModel):
@@ -90,6 +91,7 @@ class EnrichTaskRequest(BaseModel):
     projectId: str
     task_title: str
     user_description: str
+    selected_model: int
     # expected_version: int
 
 class EnrichResult(BaseModel):
