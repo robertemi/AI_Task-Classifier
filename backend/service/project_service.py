@@ -7,23 +7,28 @@ from backend.types.types import (
     DeleteProjectRequest
 )
 from backend.rag.retriever import RAGService
-from backend.core.config import get_supabase_client
+from backend.core.config import get_redis_client
 
 class ProjectService:
 
     def __init__(self, rag: RAGService | None = None) -> None:
         self._rag = rag or RAGService()
-        self._client = None
+        self._supabase_client = None
+        self._redis_client = None
 
-    async def ensure_client(self):
-        if self._client is None:
-            self._client = await get_supabase_client()
+
+    async def ensure_clients(self):
+        if self._supabase_client is None:
+            self._supabase_client = await get_supabase_client()
+        if self._redis_client is None:
+            self._redis_client = await get_redis_client()
+
 
     async def create_project(self, req: IndexProjectRequest):
-        await self.ensure_client()
+        await self.ensure_clients()
         try:
             response = (
-                self._client.table('projects')
+                self._supabase_client.table('projects')
                 .insert(
                     {
                         "user_id": req.userId,
@@ -37,14 +42,18 @@ class ProjectService:
 
             if response.data:
                 new_id = response.data[0]['id']
-                self._rag.index_project(
+                project_embeddings = self._rag.index_project(
                     IndexProjectRequest(
                         projectId=new_id,
                         userId=req.userId,
                         name=req.name,
                         description=req.description
                     )
-                )
+                )['chunks_indexed']
+
+                cache_key = f'{set(req.userId, new_id)}:{project_embeddings}'
+                
+
                 return True
             
             else:
@@ -55,7 +64,7 @@ class ProjectService:
             print(f'Unhandled exception in insert project: {e}')
 
     async def update_project(self, req: EditProjectRequest):
-        await self.ensure_client()
+        await self.ensure_clients()
         try:
             update_data = {
                 **({"name": req.name} if req.name else {}),
@@ -63,7 +72,7 @@ class ProjectService:
             }
 
             response = (
-                self._client
+                self._supabase_client
                 .table('projects')
                 .update(update_data)
                 .eq("id", req.projectId)
@@ -92,10 +101,10 @@ class ProjectService:
             return False
 
     async def delete_project(self, req: DeleteProjectRequest):
-        await self.ensure_client()
+        await self.ensure_clients()
         try:
             response = (
-                self._client
+                self._supabase_client
                 .table('projects')
                 .delete()
                 .match({

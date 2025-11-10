@@ -120,7 +120,7 @@ async def enrich_task_details(
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": context}
             ],
-            "max_tokens": 800
+            "max_tokens": 1000
         })
     )
 

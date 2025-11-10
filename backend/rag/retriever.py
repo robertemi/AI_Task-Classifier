@@ -9,7 +9,8 @@ from ..types.types import (
 )
 
 import json
-from backend.cache.redis_client import redis_client
+from backend.core.config import get_redis_client
+
 
 
 @dataclass

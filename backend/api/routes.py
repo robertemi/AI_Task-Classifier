@@ -58,24 +58,6 @@ async def index_project(req: IndexProjectRequest) -> IndexResponse:
         raise HTTPException(status_code=500, detail=f"Project creation failed: {e}") from e
 
 
-@router.put("/project/{project_id}", response_model=IndexResponse)
-async def update_project1(project_id: str, req: IndexProjectRequest) -> IndexResponse:
-    try:
-        updated = await _project_service.update_project(project_id, req)
-
-        if not updated:
-            raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
-
-        return IndexResponse(
-            ok=True,
-            data={"projectId": project_id},
-            detail="Project updated successfully"
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Project update failed: {e}") from e
 
 @router.put('/edit/project')
 async def update_project(req: EditProjectRequest):
