@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import List
-from dataclasses import dataclass
+from typing import List, Dict, Optional
+from dataclasses import dataclass, field
 from .chunking import chunk_text, normalize_text, sha256_of
 from .vector_store import VectorStore
 from ..types.types import (
@@ -10,13 +10,21 @@ from ..types.types import (
 
 @dataclass
 class RAGService:
+# before
     """
     Main class that handles all AI memory (RAG) operations.
 
     - Saves projects and tasks to ChromaDB.
     - Searches for related information when the AI needs context.
     """
+# currently
+    """
+       Handles all RAG operations: indexing, retrieval, deterministic lookups.
+       Now with simple in-memory caching for deterministic reads.
+    """
     vs: VectorStore = VectorStore()
+    _project_cache: Dict[str, str] = field(default_factory=dict)
+    _tasks_cache: Dict[str, List[str]] = field(default_factory=dict)
 
     def index_project(self, req: IndexProjectRequest):
         """Save a new project in the vector store."""
@@ -34,6 +42,11 @@ class RAGService:
             },
         } for i, ch in enumerate(chunks)]
         inserted = self.vs.upsert_texts(req.projectId, items)
+
+        # invalidate cache for this project
+        pid = str(req.projectId)
+        self._project_cache.pop(pid, None)
+
         return {"chunks_indexed": inserted, "skipped": 0}
 
 
@@ -55,6 +68,11 @@ class RAGService:
             },
         } for i, ch in enumerate(chunks)]
         inserted = self.vs.upsert_texts(req.projectId, items)
+
+        # tasks changed -> invalidate cache for this project
+        pid = str(req.projectId)
+        self._tasks_cache.pop(pid, None)
+
         return {"chunks_indexed": inserted, "skipped": 0}
 
     def retrieve(self, req: RetrieveRequest) -> RetrieveResponse:
@@ -103,10 +121,14 @@ class RAGService:
     Deterministric project retrieval
     
     """
-    def get_project_by_id(self, projectId: str):
+    def get_project_by_id(self, projectId: str)-> str:
         """
         Retrieve the project chunks (deterministically) for a given projectId.
         """
+        pid = str(projectId)
+        if pid in self._project_cache:
+            return self._project_cache[pid]
+
         raw = self.vs.query(
             project_id=projectId,
             query_text="",  # no semantic filter
@@ -114,7 +136,9 @@ class RAGService:
             where={"type": "project"}
         )
         docs = raw.get("documents", [[]])[0]
-        return "\n".join(docs) if docs else ""
+        text = "\n".join(docs) if docs else ""
+        self._project_cache[pid] = text
+        return text
     
 
     """
@@ -126,6 +150,11 @@ class RAGService:
         """
         Retrieve all previously indexed task chunks under the given projectId.
         """
+
+        pid = str(projectId)
+        if pid in self._tasks_cache:
+            return self._tasks_cache[pid]
+
         raw = self.vs.query(
             project_id=projectId,
             query_text="",  # return all
@@ -133,4 +162,23 @@ class RAGService:
             where={"type": "task"}
         )
         docs = raw.get("documents", [[]])[0]
+        self._tasks_cache[pid] = docs
         return docs  # return as a list of text chunks
+
+
+    def delete_task(self, projectId: str, taskId: str) -> int:
+        """
+        Delete all RAG chunks associated with a specific task.
+        """
+        deleted = self.vs.delete_by_task(project_id=projectId, task_id=taskId)
+        self._tasks_cache.pop(str(projectId), None)
+        return deleted
+
+    def delete_project(self, projectId: str) -> None:
+        """
+        Delete all RAG data associated with a specific project.
+        """
+        self.vs.delete_project(project_id=projectId)
+        pid = str(projectId)
+        self._project_cache.pop(pid, None)
+        self._tasks_cache.pop(pid, None)

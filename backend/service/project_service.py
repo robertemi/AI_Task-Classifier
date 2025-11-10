@@ -11,8 +11,8 @@ from backend.core.config import get_supabase_client
 
 class ProjectService:
 
-    def __init__(self) -> None:
-        self._rag = RAGService()
+    def __init__(self, rag: RAGService | None = None) -> None:
+        self._rag = rag or RAGService()
         self._client = None
 
     async def ensure_client(self):
@@ -71,17 +71,17 @@ class ProjectService:
             response = await response.execute()
 
             if response.data:
-                # TODO call edit project method from RAG
-
-                # self._rag.index_project(
-                #     IndexProjectRequest(
-                #         projectId=project_id,
-                #         userId=req.userId,
-                #         name=req.name,
-                #         description=req.description,
-                #         status=req.status,
-                #     )
-                # )
+                row = response.data[0]
+                # resync project in RAG with latest update
+                self._rag.index_project(
+                    IndexProjectRequest(
+                        projectId=row["id"],
+                        userId=row.get("user_id", req.userId),
+                        name=row["name"],
+                        description=row.get("description", ""),
+                        status=row.get("status")
+                    )
+                )
                 return True
             else:
                 print(f'Update project {req.projectId} failed: not found')
@@ -107,7 +107,8 @@ class ProjectService:
             response = await response.execute()
 
             if response.data:
-                # TODO call delete project method from RAG
+                # remove all RAG data from this project
+                self._rag.delete_project(req.projectId)
                 return True
             else:
                 print(f'Delete project {req.projectId} failed: not found')
