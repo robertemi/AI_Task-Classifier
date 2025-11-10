@@ -5,15 +5,15 @@ from backend.types.types import (
     EditEnrichedTaskRequest,
     DeleteEnrichedTaskRequest
 )
-from backend.core.config import get_supabase_client
+
 from backend.rag.retriever import RAGService
 from backend.core.config import get_supabase_client
 
 
 class TaskService:
 
-    def __init__(self):
-        self._rag = RAGService()
+    def __init__(self, rag: RAGService | None = None):
+        self._rag = rag or RAGService()
         self._client = None
 
     async def ensure_client(self):
@@ -64,16 +64,21 @@ class TaskService:
             print(f"Unhandled exception in insert task: {e}")
             return False
 
+# it doesn't overwrite the id/project_id in update data. After DB update -> it will call _rag.index_task with the latest row.
+    # index_task uses upsert -> RAG is updated.
     async def update_task(self, req: EditEnrichedTaskRequest):
         await self.ensure_client()
         try:
+            # Only update provided fields
             update_data = {
-                **({"project_id": req.projectId}),
-                **({"id": req.taskId}),
                 **({"title": req.task_title} if req.task_title else {}),
                 **({"description": req.user_description} if req.user_description else {}),
                 **({"ai_description": req.ai_description} if req.ai_description else {})
             }
+
+            if not update_data:
+                print("No fields to update for task", req.taskId)
+                return False
 
             response = (
                 self._client
@@ -92,20 +97,18 @@ class TaskService:
             if response.data and len(response.data) > 0:
                 row = response.data[0]
 
-                ai_desc = row.get("ai_description") or ""
-
-                # TODO call edit task method from RAG
-                # self._rag.index_task(
-                #     IndexEnrichedTaskRequest(
-                #         taskId=task_id,
-                #         projectId=req.projectId,
-                #         task_title=req.task_title,
-                #         user_description=req.user_description,
-                #         ai_description=ai_desc,
-                #         epic=getattr(req, "epic", None),
-                #         status=req.status,
-                #     )
-                # )
+                # Re-sync updated task in RAG
+                self._rag.index_task(
+                    IndexEnrichedTaskRequest(
+                        taskId=row["id"],
+                        projectId=row["project_id"],
+                        task_title=row.get("title", ""),
+                        user_description=row.get("description", "") or "",
+                        ai_description=row.get("ai_description", "") or "",
+                        epic=row.get("epic"),
+                        status=row.get("status"),
+                    )
+                )
                 return True
 
             print(f"Update task {req.taskId} or User has no permission on given task")
@@ -115,6 +118,7 @@ class TaskService:
             print(f"Unhandled exception in update task: {e}")
             return False
 
+# delete in DB -> delete in RAG
     async def delete_task(self, req: DeleteEnrichedTaskRequest):
         await self.ensure_client()
         try:
@@ -133,7 +137,10 @@ class TaskService:
             print("delete_task supabase response:", response)
 
             if response.data and len(response.data) > 0:
-                # TODO call edit task method from RAG
+                self._rag.delete_task(
+                    projectId=req.projectId,
+                    taskId=req.taskId
+                )
                 return True
 
             print(f"Delete task {req.taskId} failed: not found")

@@ -64,6 +64,7 @@ class VectorStore:
         return len(ids_to_del)
 
 
+
     def query(self, project_id: int, query_text: str, k: int = 12, where: Optional[Dict[str, object]] = None):
         """
         Find the most similar chunks for a given text.
@@ -71,3 +72,16 @@ class VectorStore:
         """
         coll = self._collection(project_id)
         return coll.query(query_texts=[query_text], n_results=k, where=where or {})
+
+
+    def delete_project(self, project_id: int) -> None:
+        """
+        Delete all vector data for a given project by dropping its collection.
+        """
+        collection_name = f"proj_{project_id}"
+        try:
+            self.client.delete_collection(name=collection_name)
+        except Exception:
+            # Ignore if collection is missing or Chroma errors.
+            pass
+

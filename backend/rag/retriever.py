@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import List
-from dataclasses import dataclass
+from typing import List, Dict, Optional
+from dataclasses import dataclass, field
 from .chunking import chunk_text, normalize_text, sha256_of
 from .vector_store import VectorStore
 from ..types.types import (
@@ -8,13 +8,23 @@ from ..types.types import (
     RetrieveRequest, RetrieveResponse, ContextChunk
 )
 
+import json
+from backend.cache.redis_client import redis_client
+
+
 @dataclass
 class RAGService:
+# before
     """
     Main class that handles all AI memory (RAG) operations.
 
     - Saves projects and tasks to ChromaDB.
     - Searches for related information when the AI needs context.
+    """
+# currently
+    """
+       Handles all RAG operations: indexing, retrieval, deterministic lookups.
+       Now with simple in-memory caching for deterministic reads.
     """
     vs: VectorStore = VectorStore()
 
@@ -34,6 +44,11 @@ class RAGService:
             },
         } for i, ch in enumerate(chunks)]
         inserted = self.vs.upsert_texts(req.projectId, items)
+
+        # invalidate cache for this project
+        pid = str(req.projectId)
+        redis_client.delete(f"project:{pid}:context")
+
         return {"chunks_indexed": inserted, "skipped": 0}
 
 
@@ -55,6 +70,10 @@ class RAGService:
             },
         } for i, ch in enumerate(chunks)]
         inserted = self.vs.upsert_texts(req.projectId, items)
+
+        # tasks changed -> invalidate cache for this project
+        pid = str(req.projectId)
+        redis_client.delete(f"project:{pid}:tasks")
         return {"chunks_indexed": inserted, "skipped": 0}
 
     def retrieve(self, req: RetrieveRequest) -> RetrieveResponse:
@@ -103,10 +122,17 @@ class RAGService:
     Deterministric project retrieval
     
     """
-    def get_project_by_id(self, projectId: str):
+    def get_project_by_id(self, projectId: str)-> str:
         """
         Retrieve the project chunks (deterministically) for a given projectId.
         """
+        pid = str(projectId)
+        key = f"project:{pid}:context"
+
+        cached = redis_client.get(key)
+        if cached is not None:
+            return cached
+
         raw = self.vs.query(
             project_id=projectId,
             query_text="",  # no semantic filter
@@ -114,7 +140,11 @@ class RAGService:
             where={"type": "project"}
         )
         docs = raw.get("documents", [[]])[0]
-        return "\n".join(docs) if docs else ""
+        text = "\n".join(docs) if docs else ""
+
+        if text:
+            redis_client.set(key, text, ex=3600)  # 1h TTL ? # TODO decide on TTL
+        return text
     
 
     """
@@ -126,6 +156,17 @@ class RAGService:
         """
         Retrieve all previously indexed task chunks under the given projectId.
         """
+
+        pid = str(projectId)
+        key = f"project:{pid}:tasks"
+
+        cached = redis_client.get(key)
+        if cached is not None:
+            try:
+                return json.loads(cached)
+            except json.JSONDecodeError:
+                pass
+
         raw = self.vs.query(
             project_id=projectId,
             query_text="",  # return all
@@ -133,4 +174,23 @@ class RAGService:
             where={"type": "task"}
         )
         docs = raw.get("documents", [[]])[0]
+        redis_client.set(key, json.dumps(docs), ex=3600)
         return docs  # return as a list of text chunks
+
+
+    def delete_task(self, projectId: str, taskId: str) -> int:
+        """
+        Delete all RAG chunks associated with a specific task.
+        """
+        deleted = self.vs.delete_by_task(project_id=projectId, task_id=taskId)
+        redis_client.delete(f"project:{projectId}:tasks")
+        return deleted
+
+    def delete_project(self, projectId: str) -> None:
+        """
+        Delete all RAG data associated with a specific project.
+        """
+        self.vs.delete_project(project_id=projectId)
+        pid = str(projectId)
+        redis_client.delete(f"project:{pid}:context")
+        redis_client.delete(f"project:{pid}:tasks")

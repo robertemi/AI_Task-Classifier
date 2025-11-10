@@ -17,13 +17,15 @@ from backend.model.model import enrich_task_details
 from backend.service.project_service import ProjectService
 from backend.service.task_service import TaskService
 
+from backend.rag.singleton import rag_service
 
-_rag = RAGService()
+
+_rag = rag_service
 _rag_init_error = None
 
 router = APIRouter(prefix="/index", tags=["indexing"])
-_project_service = ProjectService()
-_task_service = TaskService()
+_project_service = ProjectService(rag=_rag)
+_task_service = TaskService(rag=_rag)
 
 
 @router.get("/health", response_model=IndexResponse)
