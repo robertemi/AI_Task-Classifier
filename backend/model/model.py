@@ -169,7 +169,7 @@ async def enrich_task_details(
     data = response.json()
 
     if response.status_code != 200:
-        print('OpenRouter error')
+        print(f'OpenRouter error: {data}')
         raise RuntimeError(f'Openrouter API Error: {data}')
 
     if 'choices' not in data:

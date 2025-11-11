@@ -116,6 +116,10 @@ class ProjectService:
     async def delete_project(self, req: DeleteProjectRequest):
         await self.ensure_clients()
         try:
+            if not req.projectId or not req.userId:
+                print("Missing required fields in delete_project:", req)
+                return False
+
             response = (
                 self._supabase_client
                 .table('projects')
@@ -128,18 +132,14 @@ class ProjectService:
 
             response = await response.execute()
 
-            if response.data:
-                # remove all RAG data from this project
-                self._rag.delete_project(req.projectId)
+            print("Supabase delete response:", response.data)
 
-                # invalidate cache
-                cache_key=f'user:{req.userId}:project:{req.projectId}:embeddings'
-                await self._redis_client.delete(cache_key)
+        
+            self._rag.delete_project(str(req.projectId))
+            cache_key = f"user:{req.userId}:project:{req.projectId}:embeddings"
+            await self._redis_client.delete(cache_key)
 
-                return True
-            else:
-                print(f'Delete project {req.projectId} failed: not found')
-                return False
+            return True
 
         except Exception as e:
             print(f'Unhandled exception in delete project: {e}')
