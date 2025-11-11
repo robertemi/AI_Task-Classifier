@@ -63,7 +63,17 @@ class TaskService:
 
                 # cache newly created task
                 cache_key = f'project:{req.projectId}:tasks'
-                new_task_text = f'{req.task_title}\n{req.user_description}'
+                new_task_entry = {
+                    "taskId": new_id,
+                    "title": req.task_title,
+                    "user_description": req.user_description or "",
+                    "ai_description": req.ai_description or "",
+                    "text": "\n".join([
+                        req.task_title,
+                        req.user_description or "",
+                        req.ai_description or ""
+                    ]).strip()
+                }
 
                 # get previously cached tasks
                 cached = await self._redis_client.get(cache_key)
@@ -78,7 +88,7 @@ class TaskService:
                     tasks = []
 
                 # append and re-cache
-                tasks.append(new_task_text)
+                tasks.append(new_task_entry)
                 await self._redis_client.set(cache_key, json.dumps(tasks), ex=1800)
 
                 return True
@@ -118,11 +128,8 @@ class TaskService:
 
             response = await response.execute()
 
-            print("update_task supabase response:", response)
-
             if response.data and len(response.data) > 0:
                 row = response.data[0]
-
                 # Re-sync updated task in RAG
                 self._rag.index_task(
                     IndexEnrichedTaskRequest(
@@ -138,38 +145,34 @@ class TaskService:
 
                 # cache edited task
                 cache_key = f'project:{req.projectId}:tasks'
-                new_task_entry = new_task_entry = {
+                # get previously cached tasks
+                cached = await self._redis_client.get(cache_key)
+                tasks = json.loads(cached) if cached else []
+
+                new_task_entry = {
                     "taskId": req.taskId,
                     "title": row.get("title", req.task_title or ""),
                     "user_description": row.get("description", req.user_description or ""),
-                    "ai_description": row.get("ai_description", req.ai_description or "")
+                    "ai_description": row.get("ai_description", req.ai_description or ""),
                 }
+                new_task_entry['text'] = "\n".join([
+                    new_task_entry['title'],
+                    new_task_entry['user_description'],
+                    new_task_entry['ai_description'],
+                ]).strip()
 
+                task_id = str(req.taskId).strip()
 
-                # get previously cached tasks
-                cached = await self._redis_client.get(cache_key)
-
-                if cached:
-                    try:
-                        tasks = json.loads(cached)
-                    except json.JSONDecodeError:
-                        # first task to be cached
-                        tasks = []
-                else:
-                    tasks = []
-
-                # replace existing entry or append if new
                 for i, t in enumerate(tasks):
-                    if t.get("taskId") == req.taskId:
+                    cached_id = str(t.get("taskId")).strip() if t.get("taskId") else ""
+                    if cached_id == task_id:
                         tasks[i] = new_task_entry
+                
                         break
                 else:
                     tasks.append(new_task_entry)
 
-                # re-cache updated list with TTL
                 await self._redis_client.set(cache_key, json.dumps(tasks), ex=1800)
-
-
                 return True
 
             print(f"Update task {req.taskId} or User has no permission on given task")

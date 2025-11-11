@@ -80,6 +80,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 PyYAML==6.0.3
 realtime==2.23.2
+redis==7.0.1
 referencing==0.37.0
 requests==2.32.5
 requests-oauthlib==2.0.0
@@ -106,12 +107,10 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 urllib3==2.3.0
 uvicorn==0.38.0
-#uvloop==0.22.1
+uvloop==0.22.1
 watchfiles==1.1.1
 websocket-client==1.9.0
 websockets==15.0.1
 wheel==0.45.1
 yarl==1.22.0
 zipp==3.23.0
-redis==5.0.7
-

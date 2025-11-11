@@ -136,7 +136,7 @@ class RAGService:
         )
         docs = raw.get("documents", [[]])[0]
         text = "\n".join(docs) if docs else ""
-
+        return text
     
 
     """

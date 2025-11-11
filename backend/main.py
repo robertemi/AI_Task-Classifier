@@ -18,7 +18,6 @@ async def lifespan(app: FastAPI):
 
     # on shutdown
     await app.state.redis.close()
-    await app.state.supabase.aclose()
     
 
 app = FastAPI(lifespan=lifespan)

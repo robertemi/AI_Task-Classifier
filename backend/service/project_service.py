@@ -12,8 +12,8 @@ from backend.core.config import get_redis_client
 
 class ProjectService:
 
-    def __init__(self, rag: RAGService | None = None) -> None:
-        self._rag = rag or RAGService()
+    def __init__(self) -> None:
+        self._rag = RAGService()
         self._supabase_client = None
         self._redis_client = None
 
@@ -55,7 +55,7 @@ class ProjectService:
                 # cache newly created project
                 cache_key = f'user:{req.userId}:project:{new_id}:embeddings'
                 project_text = self._rag.get_project_by_id(new_id)
-                await self._redis_client.setex(cache_key, project_text, ex=1800)                
+                await self._redis_client.setex(cache_key, 1800, project_text)                
 
                 return True
             
@@ -102,7 +102,7 @@ class ProjectService:
 
                 # cache edited project
                 edited_project_text = self._rag.get_project_by_id(req.projectId)
-                await self._redis_client.setex(cache_key, edited_project_text, ex=1800)
+                await self._redis_client.setex(cache_key, 1800, edited_project_text)
 
                 return True
             else:

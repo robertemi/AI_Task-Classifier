@@ -89,6 +89,7 @@ class RetrieveResponse(BaseModel):
 
 class EnrichTaskRequest(BaseModel):
     taskId: Optional[str] = None
+    userId: str
     projectId: str
     task_title: str
     user_description: str

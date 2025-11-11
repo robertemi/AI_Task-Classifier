@@ -23,8 +23,8 @@ _rag = RAGService()
 _rag_init_error = None
 
 router = APIRouter(prefix="/index", tags=["indexing"])
-_project_service = ProjectService(rag=_rag)
-_task_service = TaskService(rag=_rag)
+_project_service = ProjectService()
+_task_service = TaskService()
 
 
 @router.get("/health", response_model=IndexResponse)
@@ -108,7 +108,8 @@ async def enrich_and_index(req: EnrichTaskRequest) -> IndexResponse:
                 task_title=req.task_title,
                 taskId=req.taskId,
                 user_description=req.user_description,
-                selected_model=req.selected_model
+                selected_model=req.selected_model,
+                userId=req.userId
             )
             )
         
