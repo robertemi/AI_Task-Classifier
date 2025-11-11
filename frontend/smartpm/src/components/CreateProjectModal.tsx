@@ -72,8 +72,8 @@ export function CreateProjectModal({ isOpen, onClose, onProjectCreated }: Create
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-gray-900/80 border border-white/20 rounded-2xl p-8 shadow-2xl w-full max-w-md m-4">
+    <div onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div onClick={(e) => e.stopPropagation()} className="bg-gray-900/80 border border-white/20 rounded-2xl p-8 shadow-2xl w-full max-w-md m-4">
         <h2 className="text-white text-2xl font-bold mb-6">Create New Project</h2>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
@@ -82,14 +82,14 @@ export function CreateProjectModal({ isOpen, onClose, onProjectCreated }: Create
               placeholder="Project Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 focus:ring-blue-400/50 focus:bg-white/20 transition-all"
+              className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 focus:ring-blue-400/50 focus:bg-white/20 transition-all text-sm rounded-xl px-4"
               required
             />
             <textarea
               placeholder="Project Description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 transition-all"
+              className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 transition-all text-sm"
               rows={4}
             />
           </div>

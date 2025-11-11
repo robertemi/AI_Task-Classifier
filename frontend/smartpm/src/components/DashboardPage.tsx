@@ -37,6 +37,8 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
     const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
     const [isTaskDetailsModalOpen, setIsTaskDetailsModalOpen] = useState(false);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [selectedStatusForNewTask, setSelectedStatusForNewTask] = useState<Task['status']>('todo');
+    const [createModalKey, setCreateModalKey] = useState(0);
 
     const fetchProjectDetails = async () => {
         if (!projectId) return;
@@ -115,11 +117,17 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
         setIsTaskDetailsModalOpen(true);
     };
 
+    const handleAddTaskClick = (status: Task['status']) => {
+        setSelectedStatusForNewTask(status);
+        setCreateModalKey(prevKey => prevKey + 1);
+        setIsCreateTaskModalOpen(true);
+    };
+
     const columnConfig = [
-        { title: "To Do", status: "todo" as const, tasks: tasksByStatus.todo, accentColor: "from-slate-500/20 to-transparent", borderColor: "border-slate-400/40", onAddTaskClick: () => setIsCreateTaskModalOpen(true) },
-        { title: "In Progress", status: "inProgress" as const, tasks: tasksByStatus.inProgress, accentColor: "from-blue-500/20 to-transparent", borderColor: "border-blue-400/40", onAddTaskClick: undefined },
-        { title: "In Review", status: "inReview" as const, tasks: tasksByStatus.inReview, accentColor: "from-amber-500/20 to-transparent", borderColor: "border-amber-400/40", onAddTaskClick: undefined },
-        { title: "Done", status: "done" as const, tasks: tasksByStatus.done, accentColor: "from-emerald-500/20 to-transparent", borderColor: "border-emerald-400/40", onAddTaskClick: undefined },
+        { title: "To Do", status: "todo" as const, tasks: tasksByStatus.todo, accentColor: "from-slate-500/20 to-transparent", borderColor: "border-slate-400/40", onAddTaskClick: () => handleAddTaskClick("todo") },
+        { title: "In Progress", status: "inProgress" as const, tasks: tasksByStatus.inProgress, accentColor: "from-blue-500/20 to-transparent", borderColor: "border-blue-400/40", onAddTaskClick: () => handleAddTaskClick("inProgress") },
+        { title: "In Review", status: "inReview" as const, tasks: tasksByStatus.inReview, accentColor: "from-amber-500/20 to-transparent", borderColor: "border-amber-400/40", onAddTaskClick: () => handleAddTaskClick("inReview") },
+        { title: "Done", status: "done" as const, tasks: tasksByStatus.done, accentColor: "from-emerald-500/20 to-transparent", borderColor: "border-emerald-400/40", onAddTaskClick: () => handleAddTaskClick("done") },
     ];
 
     if (loadingProject || loadingTasks) {
@@ -167,7 +175,14 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
                     </div>
                 </main>
             </div>
-            <CreateTaskModal isOpen={isCreateTaskModalOpen} onClose={() => setIsCreateTaskModalOpen(false)} onTaskCreated={handleTaskCreated} projectId={projectId} />
+            <CreateTaskModal 
+                key={createModalKey}
+                isOpen={isCreateTaskModalOpen} 
+                onClose={() => setIsCreateTaskModalOpen(false)} 
+                onTaskCreated={handleTaskCreated} 
+                projectId={projectId} 
+                status={selectedStatusForNewTask} 
+            />
             <TaskDetailsModal isOpen={isTaskDetailsModalOpen} onClose={() => setIsTaskDetailsModalOpen(false)} task={selectedTask} />
         </>
     );
@@ -210,7 +225,7 @@ function StatusColumn({ title, count, tasks, accentColor, borderColor, onDragOve
                 {onAddTaskClick && (
                     <button onClick={onAddTaskClick} className="w-full group relative bg-black/20 backdrop-blur-sm rounded-2xl p-5 border-2 border-dashed border-white/20 hover:border-purple-400/50 transition-all duration-300 text-center opacity-60 hover:opacity-100">
                         <div className="relative">
-                            <div className="text-gray-400 group-hover:text-white text-[15px] font-medium transition-colors">+ Add a Task</div>
+                            <div className="text-gray-400 group-hover:text-white text-[15px] font-medium transition-colors">+ Add a task</div>
                         </div>
                     </button>
                 )}

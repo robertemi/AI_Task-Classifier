@@ -9,6 +9,7 @@ type User = {
 type AuthContextValue = {
     user: User | null
     session: any
+    loading: boolean
     signOut: () => Promise<void>
 }
 
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [session, setSession] = useState<any>(null)
     const [user, setUser] = useState<User | null>(null)
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         let mounted = true
@@ -26,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!mounted) return
             setSession(data.session)
             setUser(data.session?.user ? { id: data.session.user.id, email: data.session.user.email } : null)
+            setLoading(false)
         })()
 
         const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -44,7 +47,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return (
-        <AuthContext.Provider value={{ user, session, signOut }}>
+        <AuthContext.Provider value={{ user, session, loading, signOut }}>
             {children}
         </AuthContext.Provider>
     )

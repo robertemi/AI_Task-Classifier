@@ -37,8 +37,8 @@ export function TaskDetailsModal({ isOpen, onClose, task }: TaskDetailsModalProp
   if (!isOpen || !task) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="group relative bg-black/30 backdrop-blur-xl border border-white/20 rounded-2xl p-8 shadow-lg w-full max-w-2xl m-4 overflow-hidden">
+    <div onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div onClick={(e) => e.stopPropagation()} className="group relative bg-black/30 backdrop-blur-xl border border-white/20 rounded-2xl p-8 shadow-lg w-full max-w-2xl m-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-purple-500/5 transition-all duration-300" />
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10">
           <X size={24} />
@@ -54,7 +54,7 @@ export function TaskDetailsModal({ isOpen, onClose, task }: TaskDetailsModalProp
             {task.ai_description && (
                 <div>
                     <h3 className="text-indigo-300 font-semibold mb-2">AI Generated Description</h3>
-                    <div className="text-indigo-200 font-mono bg-white/5 p-3 rounded-lg">
+                    <div className="text-indigo-200 font-mono bg-white/5 p-3 rounded-lg max-h-60 overflow-y-auto">
                         <p>{task.ai_description}</p>
                     </div>
                 </div>
