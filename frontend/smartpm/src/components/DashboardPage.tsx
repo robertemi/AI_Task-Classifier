@@ -4,6 +4,8 @@ import Aurora from "./Aurora";
 import { supabase } from "@/lib/supabaseClient";
 import { CreateTaskModal } from "./CreateTaskModal";
 import { TaskDetailsModal } from "./TaskDetailsModal";
+import { TaskContextMenu } from "./TaskContextMenu";
+import { EditTaskModal } from "./EditTaskModal";
 
 interface Task {
     id: string;
@@ -36,9 +38,17 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
     const [errorProject, setErrorProject] = useState<string | null>(null);
     const [isCreateTaskModalOpen, setIsCreateTaskModalOpen] = useState(false);
     const [isTaskDetailsModalOpen, setIsTaskDetailsModalOpen] = useState(false);
+    const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false); // State for EditTaskModal
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [selectedStatusForNewTask, setSelectedStatusForNewTask] = useState<Task['status']>('todo');
     const [createModalKey, setCreateModalKey] = useState(0);
+
+    const [taskContextMenu, setTaskContextMenu] = useState<{
+        isOpen: boolean;
+        position: { x: number; y: number };
+        task: Task | null;
+    }>({ isOpen: false, position: { x: 0, y: 0 }, task: null });
+
 
     const fetchProjectDetails = async () => {
         if (!projectId) return;
@@ -96,14 +106,58 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
         e.preventDefault();
     };
 
-    const handleDrop = (newStatus: Task["status"]) => {
+    const handleDrop = async (newStatus: Task["status"]) => {
+        console.log("handleDrop called with newStatus:", newStatus);
         if (draggedTask) {
+            console.log("Dragged task:", draggedTask);
+            const originalStatus = draggedTask.status;
+
             setTasks((prevTasks) =>
                 prevTasks.map((task) =>
                     task.id === draggedTask.id ? { ...draggedTask, status: newStatus } : task
                 )
             );
-            setDraggedTask(null);
+            
+            const updatePayload = {
+                taskId: draggedTask.id,
+                projectId: draggedTask.project_id,
+                status: newStatus,
+            };
+            console.log("Sending update payload to backend:", updatePayload);
+
+            try {
+                const response = await fetch('https://ai-task-classifier.onrender.com/index/edit/task', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(updatePayload),
+                });
+
+                console.log("Backend response status:", response.status);
+                const responseData = await response.json();
+                console.log("Backend response data:", responseData);
+
+                if (!response.ok) {
+                    throw new Error(responseData.detail || 'Failed to update task status');
+                }
+                
+                console.log("Task status updated successfully in backend.");
+                fetchTasks();
+            } catch (err: any) {
+                console.error("Error updating task status:", err);
+                setErrorTasks(err.message);
+                setTasks((prevTasks) =>
+                    prevTasks.map((task) =>
+                        task.id === draggedTask.id ? { ...draggedTask, status: originalStatus } : task
+                    )
+                );
+            } finally {
+                setDraggedTask(null);
+                console.log("Dragged task reset.");
+            }
+        } else {
+            console.log("No task was dragged.");
         }
     };
 
@@ -122,6 +176,60 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
         setCreateModalKey(prevKey => prevKey + 1);
         setIsCreateTaskModalOpen(true);
     };
+
+    const handleTaskContextMenu = (event: React.MouseEvent<HTMLDivElement>, task: Task) => {
+        event.preventDefault();
+        setTaskContextMenu({
+            isOpen: true,
+            position: { x: event.clientX, y: event.clientY },
+            task: task,
+        });
+    };
+
+    const closeTaskContextMenu = () => {
+        setTaskContextMenu({ ...taskContextMenu, isOpen: false });
+    };
+
+    const handleDeleteTask = async () => {
+        if (!taskContextMenu.task) return;
+
+        try {
+            const response = await fetch('https://ai-task-classifier.onrender.com/index/delete/task', {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  taskId: taskContextMenu.task.id,
+                  projectId: taskContextMenu.task.project_id,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Failed to delete task');
+            }
+
+            fetchTasks();
+        } catch (err: any) {
+            console.error("Error deleting task:", err);
+            setErrorTasks(err.message); // Set error for tasks
+        } finally {
+            closeTaskContextMenu();
+        }
+    };
+
+    const handleEditTask = (taskToEdit: Task) => {
+        setSelectedTask(taskToEdit);
+        setIsEditTaskModalOpen(true);
+        setIsTaskDetailsModalOpen(false);
+    };
+
+    const handleTaskEdited = () => {
+        fetchTasks();
+        setIsEditTaskModalOpen(false);
+    };
+
 
     const columnConfig = [
         { title: "To Do", status: "todo" as const, tasks: tasksByStatus.todo, accentColor: "from-slate-500/20 to-transparent", borderColor: "border-slate-400/40", onAddTaskClick: () => handleAddTaskClick("todo") },
@@ -170,6 +278,7 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
                                 onDragStart={handleDragStart}
                                 onAddTaskClick={config.onAddTaskClick}
                                 onTaskClick={handleTaskClick}
+                                onTaskContextMenu={handleTaskContextMenu} // Pass the context menu handler
                             />
                         ))}
                     </div>
@@ -183,7 +292,28 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
                 projectId={projectId} 
                 status={selectedStatusForNewTask} 
             />
-            <TaskDetailsModal isOpen={isTaskDetailsModalOpen} onClose={() => setIsTaskDetailsModalOpen(false)} task={selectedTask} />
+            <TaskDetailsModal 
+                isOpen={isTaskDetailsModalOpen} 
+                onClose={() => setIsTaskDetailsModalOpen(false)} 
+                onTaskDeleted={fetchTasks} 
+                onEdit={handleEditTask}
+                task={selectedTask} 
+            />
+
+            <TaskContextMenu
+                isOpen={taskContextMenu.isOpen}
+                position={taskContextMenu.position}
+                onClose={closeTaskContextMenu}
+                onDelete={handleDeleteTask}
+                onEdit={() => handleEditTask(taskContextMenu.task!)}
+            />
+
+            <EditTaskModal
+                isOpen={isEditTaskModalOpen}
+                onClose={() => setIsEditTaskModalOpen(false)}
+                onTaskEdited={handleTaskEdited}
+                task={selectedTask}
+            />
         </>
     );
 }
@@ -200,9 +330,10 @@ interface StatusColumnProps {
     onDragStart: (task: Task) => void;
     onAddTaskClick?: () => void;
     onTaskClick: (task: Task) => void;
+    onTaskContextMenu: (event: React.MouseEvent<HTMLDivElement>, task: Task) => void;
 }
 
-function StatusColumn({ title, count, tasks, accentColor, borderColor, onDragOver, onDrop, onDragStart, onAddTaskClick, onTaskClick }: StatusColumnProps) {
+function StatusColumn({ title, count, tasks, accentColor, borderColor, onDragOver, onDrop, onDragStart, onAddTaskClick, onTaskClick, onTaskContextMenu }: StatusColumnProps) {
     return (
         <div className="bg-black/20 backdrop-blur-sm rounded-2xl p-4 border-2 border-white/10 shadow-lg min-h-[500px]" onDragOver={onDragOver} onDrop={onDrop}>
             <div className={`relative bg-black/30 backdrop-blur-xl rounded-2xl px-5 py-4 mb-4 flex items-center justify-between shadow-lg border ${borderColor} overflow-hidden`}>
@@ -219,6 +350,7 @@ function StatusColumn({ title, count, tasks, accentColor, borderColor, onDragOve
                             title={task.title}
                             priority={task.story_points || 0}
                             onClick={() => onTaskClick(task)}
+                            onContextMenu={(e) => onTaskContextMenu(e, task)}
                         />
                     </div>
                 ))}

@@ -4,25 +4,35 @@ import { ProjectCard } from "./ProjectCard";
 import Aurora from "./Aurora";
 import { Button } from "@/components/ui/button";
 import { CreateProjectModal } from "./CreateProjectModal";
+import { ProjectContextMenu } from "./ProjectContextMenu";
+import { EditProjectModal } from "./EditProjectModal"; // Import the new EditProjectModal
 import { useAuth } from "@/context/AuthProvider";
 import { supabase } from "@/lib/supabaseClient";
 
 interface Project {
-    id: string; // Changed to string as Supabase IDs are UUIDs
-    name: string; // Changed from title to name to match backend
+    id: string;
+    name: string;
     description: string;
+    user_id: string;
 }
 
 interface ProjectsPageProps {
-    onProjectClick: (projectId: string) => void; // Changed projectId type to string
+    onProjectClick: (projectId: string) => void;
 }
 
 export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
     const { user } = useAuth();
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false); // State for EditProjectModal
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const [contextMenu, setContextMenu] = useState<{
+        isOpen: boolean;
+        position: { x: number; y: number };
+        project: Project | null;
+    }>({ isOpen: false, position: { x: 0, y: 0 }, project: null });
 
     const fetchProjects = async () => {
         if (!user) {
@@ -35,7 +45,7 @@ export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
         try {
             const { data, error } = await supabase
                 .from("projects")
-                .select("id, name, description")
+                .select("id, name, description, user_id")
                 .eq("user_id", user.id);
 
             if (error) {
@@ -56,19 +66,75 @@ export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
 
     const handleProjectCreated = () => {
         fetchProjects();
-        setIsModalOpen(false);
+        setIsCreateModalOpen(false);
+    };
+
+    const handleProjectEdited = () => {
+        fetchProjects();
+        setIsEditModalOpen(false);
+    };
+
+    const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>, project: Project) => {
+        event.preventDefault();
+        setContextMenu({
+            isOpen: true,
+            position: { x: event.clientX, y: event.clientY },
+            project: project,
+        });
+    };
+
+    const closeContextMenu = () => {
+        setContextMenu({ ...contextMenu, isOpen: false });
+    };
+
+    const handleDeleteProject = async () => {
+        if (!contextMenu.project) return;
+
+        try {
+            const response = await fetch('https://ai-task-classifier.onrender.com/index/delete/project', {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  projectId: contextMenu.project.id,
+                  userId: contextMenu.project.user_id,
+                }),
+            });
+
+            fetchProjects(); 
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                if (response.status !== 404 || !errorData.detail.includes("not found")) {
+                    throw new Error(errorData.detail || 'Failed to delete project');
+                }
+            }
+
+        } catch (err: any) {
+            console.error("Error deleting project:", err);
+            setError(err.message);
+        } finally {
+            closeContextMenu();
+        }
+    };
+
+    const handleEditProject = () => {
+        setIsEditModalOpen(true);
+    };
+
+    const truncateDescription = (text: string, maxLength: number) => {
+        if (text.length <= maxLength) {
+            return text;
+        }
+        return text.substring(0, maxLength) + "...";
     };
 
     if (loading) {
         return (
             <div className="relative min-h-screen flex items-center justify-center">
                 <div className="absolute inset-0 z-0">
-                    <Aurora
-                      colorStops={["#4c1d95", "#3730a3", "#1e3a8a"]}
-                      blend={0.5}
-                      amplitude={1.0}
-                      speed={0.5}
-                    />
+                    <Aurora colorStops={["#4c1d95", "#3730a3", "#1e3a8a"]} />
                 </div>
                 <p className="relative z-10 text-white text-xl">Loading projects...</p>
             </div>
@@ -79,12 +145,7 @@ export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
         return (
             <div className="relative min-h-screen flex items-center justify-center">
                 <div className="absolute inset-0 z-0">
-                    <Aurora
-                      colorStops={["#4c1d95", "#3730a3", "#1e3a8a"]}
-                      blend={0.5}
-                      amplitude={1.0}
-                      speed={0.5}
-                    />
+                    <Aurora colorStops={["#4c1d95", "#3730a3", "#1e3a8a"]} />
                 </div>
                 <p className="relative z-10 text-red-400 text-xl">Error: {error}</p>
             </div>
@@ -95,19 +156,14 @@ export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
         <>
             <div className="relative min-h-screen">
                 <div className="absolute inset-0 z-0">
-                    <Aurora
-                      colorStops={["#4c1d95", "#3730a3", "#1e3a8a"]}
-                      blend={0.5}
-                      amplitude={1.0}
-                      speed={0.5}
-                    />
+                    <Aurora colorStops={["#4c1d95", "#3730a3", "#1e3a8a"]} />
                 </div>
 
                 <main className="relative z-10 p-12 max-w-7xl mx-auto">
                     <div className="flex items-center justify-between mb-10">
                         <h1 className="text-white text-[42px] font-bold tracking-tight">Projects</h1>
                         <Button 
-                            onClick={() => setIsModalOpen(true)}
+                            onClick={() => setIsCreateModalOpen(true)}
                             className="bg-gradient-to-r from-indigo-700 to-purple-800 text-white px-6 py-3 rounded-2xl hover:shadow-2xl hover:shadow-purple-700/40 transition-all duration-300 hover:-translate-y-0.5 transform hover:scale-105 hover:from-indigo-600 hover:to-purple-700"
                         >
                             <Plus className="w-5 h-5" />
@@ -122,8 +178,9 @@ export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
                                 <ProjectCard
                                     key={project.id}
                                     title={project.name}
-                                    description={project.description}
+                                    description={truncateDescription(project.description, 100)}
                                     onClick={() => onProjectClick(project.id)}
+                                    onContextMenu={(e) => handleContextMenu(e, project)}
                                 />
                             ))
                         )}
@@ -132,9 +189,24 @@ export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
             </div>
 
             <CreateProjectModal 
-                isOpen={isModalOpen} 
-                onClose={() => setIsModalOpen(false)} 
+                isOpen={isCreateModalOpen} 
+                onClose={() => setIsCreateModalOpen(false)} 
                 onProjectCreated={handleProjectCreated} 
+            />
+
+            <ProjectContextMenu
+                isOpen={contextMenu.isOpen}
+                position={contextMenu.position}
+                onClose={closeContextMenu}
+                onDelete={handleDeleteProject}
+                onEdit={handleEditProject} // Pass the handleEditProject function
+            />
+
+            <EditProjectModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onProjectEdited={handleProjectEdited}
+                project={contextMenu.project} // Pass the project from the context menu
             />
         </>
     );

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ChevronDown } from 'lucide-react';
+import { useAuth } from '@/context/AuthProvider'; // Import useAuth hook
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -15,7 +16,6 @@ const model_providers = {
     '1' : 'Deepseek (3.1)',
     '2' : 'OpenAI (gpt-oss-20b)',
     '3' : 'Meta-Llama (llama-3.3-8b-instruct)'
-
 };
 
 // Mapping from frontend status to backend status
@@ -28,6 +28,7 @@ const statusMap = {
 };
 
 export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId, status }: CreateTaskModalProps) {
+  const { user } = useAuth();
   const [task_title, setTaskTitle] = useState('');
   const [user_description, setUserDescription] = useState('');
   const [model, setModel] = useState('1');
@@ -53,6 +54,11 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId, sta
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!user) {
+      setError("User not authenticated.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -70,6 +76,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId, sta
           user_description,
           selected_model: parseInt(model, 10),
           status: backendStatus,
+          userId: user.id,
         }),
       });
 
