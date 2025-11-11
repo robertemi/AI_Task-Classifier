@@ -6,13 +6,13 @@ import { DashboardPage } from "@/components/DashboardPage"
 export default function Dashboard() {
     const router = useRouter()
     const { id } = router.query
-    const { session } = useAuth()
+    const { session, loading } = useAuth()
 
     useEffect(() => {
-        if (!session) router.push("/")
-    }, [session, router])
+        if (!loading && !session) router.push("/")
+    }, [session, loading, router])
 
-    if (!session || !id) return null
+    if (loading || !session || !id) return null
 
     return (
         <>
