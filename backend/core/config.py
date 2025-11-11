@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass
 from supabase import acreate_client, AsyncClient
 from dotenv import load_dotenv
-import redis.asyncio
+from redis import asyncio as aioredis
 
 load_dotenv()
 
@@ -14,6 +14,11 @@ REDIS_URL = os.getenv(
     "REDIS_URL",
     f"rediss://:{os.getenv('REDIS_PASSWORD', '')}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', 6379)}/0"
 )
+
+
+_supabase_client = AsyncClient | None = None
+_redis_client = aioredis.Redis | None = None
+
 
 @dataclass
 class Settings:
@@ -32,10 +37,15 @@ def get_settings():
     settings = Settings()
     return settings
 
+
 async def get_supabase_client() -> AsyncClient:
-    supabase: AsyncClient = await acreate_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-    return supabase
+    global _supabase_client
+    if _supabase_client is None:
+        _supabase_client = await acreate_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    return _supabase_client
 
-async def get_redis_client():
-    return redis.asyncio.Redis.from_url(REDIS_URL, decode_responses=True)
-
+async def get_redis_client() -> aioredis.Redis:
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+    return _redis_client

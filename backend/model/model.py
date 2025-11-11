@@ -10,11 +10,19 @@ from backend.types.types import (
     EnrichResult
 )
 from backend.service.task_service import TaskService
+from backend.rag.retriever import RAGService
+from backend.core.config import get_redis_client
 
-from backend.rag.singleton import rag_service
 
-task_service = TaskService(rag=rag_service)
+task_service = TaskService(rag=RAGService)
+_rag = RAGService()
 http_client: httpx.AsyncClient | None = None
+_redis_client = None
+
+async def ensure_redis_client():
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = await get_redis_client()
 
 async def get_http_client() -> httpx.AsyncClient:
     global http_client
@@ -51,12 +59,16 @@ model_providers = {
     3 : 'meta-llama/llama-3.3-8b-instruct:free'
 }
 
-async def get_project_context(project_id: str):
-    return rag_service.get_project_by_id(project_id)
+async def get_project_context(project_id: str, user_id: str):
+
+    cache_key = f'user:{user_id}:project:{project_id}:embeddings'
+
+
+    return _rag.get_project_by_id(project_id)
 
 
 async def get_previous_tasks_context(project_id: str):
-    previous_tasks = rag_service.get_previous_tasks(project_id)
+    previous_tasks = _rag.get_previous_tasks(project_id)
     return "\n\n".join(previous_tasks)
 
 async def get_context(project_id: str, new_task_title: str, new_task_user_description: str):

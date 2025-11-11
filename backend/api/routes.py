@@ -17,10 +17,9 @@ from backend.model.model import enrich_task_details
 from backend.service.project_service import ProjectService
 from backend.service.task_service import TaskService
 
-from backend.rag.singleton import rag_service
 
 
-_rag = rag_service
+_rag = RAGService()
 _rag_init_error = None
 
 router = APIRouter(prefix="/index", tags=["indexing"])

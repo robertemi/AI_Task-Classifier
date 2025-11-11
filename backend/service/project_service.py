@@ -9,6 +9,7 @@ from backend.types.types import (
 from backend.rag.retriever import RAGService
 from backend.core.config import get_redis_client
 
+
 class ProjectService:
 
     def __init__(self, rag: RAGService | None = None) -> None:
@@ -42,17 +43,19 @@ class ProjectService:
 
             if response.data:
                 new_id = response.data[0]['id']
-                project_embeddings = self._rag.index_project(
+                self._rag.index_project(
                     IndexProjectRequest(
                         projectId=new_id,
                         userId=req.userId,
                         name=req.name,
                         description=req.description
                     )
-                )['chunks_indexed']
+                )
 
-                cache_key = f'{set(req.userId, new_id)}:{project_embeddings}'
-                
+                # cache newly created project
+                cache_key = f'user:{req.userId}:project:{new_id}:embeddings'
+                project_text = self._rag.get_project_by_id(new_id)
+                await self._redis_client.setex(cache_key, project_text, ex=1800)                
 
                 return True
             
@@ -63,6 +66,7 @@ class ProjectService:
         except Exception as e:
             print(f'Unhandled exception in insert project: {e}')
 
+    
     async def update_project(self, req: EditProjectRequest):
         await self.ensure_clients()
         try:
@@ -91,6 +95,15 @@ class ProjectService:
                         status=row.get("status")
                     )
                 )
+
+                # invalidate cache before saving edited project
+                cache_key=f'user:{req.userId}:project:{req.projectId}:embeddings'
+                await self._redis_client.delete(cache_key)
+
+                # cache edited project
+                edited_project_text = self._rag.get_project_by_id(req.projectId)
+                await self._redis_client.setex(cache_key, edited_project_text, ex=1800)
+
                 return True
             else:
                 print(f'Update project {req.projectId} failed: not found')
@@ -118,6 +131,11 @@ class ProjectService:
             if response.data:
                 # remove all RAG data from this project
                 self._rag.delete_project(req.projectId)
+
+                # invalidate cache
+                cache_key=f'user:{req.userId}:project:{req.projectId}:embeddings'
+                await self._redis_client.delete(cache_key)
+
                 return True
             else:
                 print(f'Delete project {req.projectId} failed: not found')
