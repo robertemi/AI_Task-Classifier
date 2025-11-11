@@ -29,7 +29,8 @@ class DeleteProjectRequest(BaseModel):
     userId: str
 
 class IndexTaskRequest(BaseModel):
-    projectId: Optional[str] = None
+    userId: str
+    projectId: str
     taskId: Optional[str] = None
     task_title: str
     user_description: str
@@ -88,6 +89,7 @@ class RetrieveResponse(BaseModel):
 
 class EnrichTaskRequest(BaseModel):
     taskId: Optional[str] = None
+    userId: str
     projectId: str
     task_title: str
     user_description: str

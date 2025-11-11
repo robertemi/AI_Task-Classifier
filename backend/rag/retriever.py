@@ -8,9 +8,6 @@ from ..types.types import (
     RetrieveRequest, RetrieveResponse, ContextChunk
 )
 
-import json
-from backend.cache.redis_client import redis_client
-
 
 @dataclass
 class RAGService:
@@ -27,6 +24,13 @@ class RAGService:
        Now with simple in-memory caching for deterministic reads.
     """
     vs: VectorStore = VectorStore()
+    _instance: RAGService | None = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
 
     def index_project(self, req: IndexProjectRequest):
         """Save a new project in the vector store."""
@@ -45,35 +49,32 @@ class RAGService:
         } for i, ch in enumerate(chunks)]
         inserted = self.vs.upsert_texts(req.projectId, items)
 
-        # invalidate cache for this project
-        pid = str(req.projectId)
-        redis_client.delete(f"project:{pid}:context")
-
         return {"chunks_indexed": inserted, "skipped": 0}
 
 
     def index_task(self, req: IndexEnrichedTaskRequest):
         """Save or update a task with all its details."""
 
-        merged = " \n".join([f for f in [req.task_title, req.user_description or None] if f])
+        merged = " \n".join([f for f in [req.task_title, req.user_description, req.ai_description] if f])
         chunks = chunk_text(merged)
         items = [{
             "id": f"task-{req.taskId}-{i}",
             "text": ch,
             "metadata": {
-                "projectId": req.projectId, "type": "task",
-                "taskId": req.taskId, "title": req.task_title,
-                "status": req.status, "epic": req.epic,
+                "projectId": req.projectId, 
+                "type": "task",
+                "taskId": req.taskId, 
+                "title": req.task_title,
+                "status": req.status, 
+                "epic": req.epic,
+                "user_description": req.user_description,
                 "ai_description": req.ai_description,
                 # "version": req.version, 
                 "hash": sha256_of(ch),
             },
         } for i, ch in enumerate(chunks)]
-        inserted = self.vs.upsert_texts(req.projectId, items)
 
-        # tasks changed -> invalidate cache for this project
-        pid = str(req.projectId)
-        redis_client.delete(f"project:{pid}:tasks")
+        inserted = self.vs.upsert_texts(req.projectId, items)
         return {"chunks_indexed": inserted, "skipped": 0}
 
     def retrieve(self, req: RetrieveRequest) -> RetrieveResponse:
@@ -126,13 +127,7 @@ class RAGService:
         """
         Retrieve the project chunks (deterministically) for a given projectId.
         """
-        pid = str(projectId)
-        key = f"project:{pid}:context"
-
-        cached = redis_client.get(key)
-        if cached is not None:
-            return cached
-
+        
         raw = self.vs.query(
             project_id=projectId,
             query_text="",  # no semantic filter
@@ -141,9 +136,6 @@ class RAGService:
         )
         docs = raw.get("documents", [[]])[0]
         text = "\n".join(docs) if docs else ""
-
-        if text:
-            redis_client.set(key, text, ex=3600)  # 1h TTL ? # TODO decide on TTL
         return text
     
 
@@ -157,16 +149,6 @@ class RAGService:
         Retrieve all previously indexed task chunks under the given projectId.
         """
 
-        pid = str(projectId)
-        key = f"project:{pid}:tasks"
-
-        cached = redis_client.get(key)
-        if cached is not None:
-            try:
-                return json.loads(cached)
-            except json.JSONDecodeError:
-                pass
-
         raw = self.vs.query(
             project_id=projectId,
             query_text="",  # return all
@@ -174,7 +156,6 @@ class RAGService:
             where={"type": "task"}
         )
         docs = raw.get("documents", [[]])[0]
-        redis_client.set(key, json.dumps(docs), ex=3600)
         return docs  # return as a list of text chunks
 
 
@@ -183,14 +164,11 @@ class RAGService:
         Delete all RAG chunks associated with a specific task.
         """
         deleted = self.vs.delete_by_task(project_id=projectId, task_id=taskId)
-        redis_client.delete(f"project:{projectId}:tasks")
         return deleted
+
 
     def delete_project(self, projectId: str) -> None:
         """
         Delete all RAG data associated with a specific project.
         """
         self.vs.delete_project(project_id=projectId)
-        pid = str(projectId)
-        redis_client.delete(f"project:{pid}:context")
-        redis_client.delete(f"project:{pid}:tasks")

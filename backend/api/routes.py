@@ -17,15 +17,14 @@ from backend.model.model import enrich_task_details
 from backend.service.project_service import ProjectService
 from backend.service.task_service import TaskService
 
-from backend.rag.singleton import rag_service
 
 
-_rag = rag_service
+_rag = RAGService()
 _rag_init_error = None
 
 router = APIRouter(prefix="/index", tags=["indexing"])
-_project_service = ProjectService(rag=_rag)
-_task_service = TaskService(rag=_rag)
+_project_service = ProjectService()
+_task_service = TaskService()
 
 
 @router.get("/health", response_model=IndexResponse)
@@ -58,24 +57,6 @@ async def index_project(req: IndexProjectRequest) -> IndexResponse:
         raise HTTPException(status_code=500, detail=f"Project creation failed: {e}") from e
 
 
-@router.put("/project/{project_id}", response_model=IndexResponse)
-async def update_project1(project_id: str, req: IndexProjectRequest) -> IndexResponse:
-    try:
-        updated = await _project_service.update_project(project_id, req)
-
-        if not updated:
-            raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
-
-        return IndexResponse(
-            ok=True,
-            data={"projectId": project_id},
-            detail="Project updated successfully"
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Project update failed: {e}") from e
 
 @router.put('/edit/project')
 async def update_project(req: EditProjectRequest):
@@ -127,7 +108,8 @@ async def enrich_and_index(req: EnrichTaskRequest) -> IndexResponse:
                 task_title=req.task_title,
                 taskId=req.taskId,
                 user_description=req.user_description,
-                selected_model=req.selected_model
+                selected_model=req.selected_model,
+                userId=req.userId
             )
             )
         
