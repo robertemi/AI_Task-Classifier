@@ -14,7 +14,7 @@ from backend.rag.retriever import RAGService
 from backend.core.config import get_redis_client
 
 
-task_service = TaskService(rag=RAGService)
+task_service = TaskService()
 _rag = RAGService()
 http_client: httpx.AsyncClient | None = None
 _redis_client = None
@@ -60,19 +60,48 @@ model_providers = {
 }
 
 async def get_project_context(project_id: str, user_id: str):
-
+    await ensure_redis_client()
     cache_key = f'user:{user_id}:project:{project_id}:embeddings'
 
+    # look for cached project
+    cached = await _redis_client.get(cache_key)
+    if cached:
+        print(f'cache hit for {cache_key}')
+        return cached
 
-    return _rag.get_project_by_id(project_id)
+    print(f'cache missed for {cache_key}')    
+    # if not cached, query RAG
+    project_text = _rag.get_project_by_id(project_id)
+
+    # save to cache
+    if project_text:
+        await _redis_client.set(cache_key, project_text, ex=3600) 
+
+    return project_text
 
 
 async def get_previous_tasks_context(project_id: str):
+    await ensure_redis_client()
+    cache_key = f"project:{project_id}:tasks"
+
+    cached = await _redis_client.get(cache_key)
+    if cached:
+        try:
+            tasks = json.loads(cached)
+            print(f'cache hit for {cache_key}')
+            return "\n\n".join(t["text"] if isinstance(t, dict) else t for t in tasks)
+        except json.JSONDecodeError:
+            pass
+
+    print(f'cache miss for {cache_key}')
     previous_tasks = _rag.get_previous_tasks(project_id)
+    await _redis_client.set(cache_key, json.dumps(previous_tasks), ex=3600)
+
     return "\n\n".join(previous_tasks)
 
-async def get_context(project_id: str, new_task_title: str, new_task_user_description: str):
-    project_text = await get_project_context(project_id)
+
+async def get_context(project_id: str, user_id: str, new_task_title: str, new_task_user_description: str):
+    project_text = await get_project_context(project_id, user_id)
     previous_tasks_text = await get_previous_tasks_context(project_id)
 
     context = (
@@ -114,6 +143,7 @@ async def enrich_task_details(
 
     context = await get_context(
         req.projectId,
+        req.userId,
         req.task_title,
         req.user_description
     )

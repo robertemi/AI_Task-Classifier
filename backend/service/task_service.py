@@ -13,8 +13,8 @@ from backend.core.config import get_redis_client
 
 class TaskService:
 
-    def __init__(self, rag: RAGService | None = None):
-        self._rag = rag or RAGService()
+    def __init__(self):
+        self._rag = RAGService()
         self._supabase_client = None
         self._redis_client = None
 
