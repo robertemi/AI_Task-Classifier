@@ -1,6 +1,6 @@
 from __future__ import annotations
-from typing import List
-from dataclasses import dataclass
+from typing import List, Dict, Optional
+from dataclasses import dataclass, field
 from .chunking import chunk_text, normalize_text, sha256_of
 from .vector_store import VectorStore
 from ..types.types import (
@@ -8,15 +8,29 @@ from ..types.types import (
     RetrieveRequest, RetrieveResponse, ContextChunk
 )
 
+
 @dataclass
 class RAGService:
+# before
     """
     Main class that handles all AI memory (RAG) operations.
 
     - Saves projects and tasks to ChromaDB.
     - Searches for related information when the AI needs context.
     """
+# currently
+    """
+       Handles all RAG operations: indexing, retrieval, deterministic lookups.
+       Now with simple in-memory caching for deterministic reads.
+    """
     vs: VectorStore = VectorStore()
+    _instance: RAGService | None = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
 
     def index_project(self, req: IndexProjectRequest):
         """Save a new project in the vector store."""
@@ -34,26 +48,32 @@ class RAGService:
             },
         } for i, ch in enumerate(chunks)]
         inserted = self.vs.upsert_texts(req.projectId, items)
+
         return {"chunks_indexed": inserted, "skipped": 0}
 
 
     def index_task(self, req: IndexEnrichedTaskRequest):
         """Save or update a task with all its details."""
 
-        merged = " \n".join([f for f in [req.task_title, req.user_description or None] if f])
+        merged = " \n".join([f for f in [req.task_title, req.user_description, req.ai_description] if f])
         chunks = chunk_text(merged)
         items = [{
             "id": f"task-{req.taskId}-{i}",
             "text": ch,
             "metadata": {
-                "projectId": req.projectId, "type": "task",
-                "taskId": req.taskId, "title": req.task_title,
-                "status": req.status, "epic": req.epic,
+                "projectId": req.projectId, 
+                "type": "task",
+                "taskId": req.taskId, 
+                "title": req.task_title,
+                "status": req.status, 
+                "epic": req.epic,
+                "user_description": req.user_description,
                 "ai_description": req.ai_description,
                 # "version": req.version, 
                 "hash": sha256_of(ch),
             },
         } for i, ch in enumerate(chunks)]
+
         inserted = self.vs.upsert_texts(req.projectId, items)
         return {"chunks_indexed": inserted, "skipped": 0}
 
@@ -103,10 +123,11 @@ class RAGService:
     Deterministric project retrieval
     
     """
-    def get_project_by_id(self, projectId: str):
+    def get_project_by_id(self, projectId: str)-> str:
         """
         Retrieve the project chunks (deterministically) for a given projectId.
         """
+        
         raw = self.vs.query(
             project_id=projectId,
             query_text="",  # no semantic filter
@@ -114,7 +135,8 @@ class RAGService:
             where={"type": "project"}
         )
         docs = raw.get("documents", [[]])[0]
-        return "\n".join(docs) if docs else ""
+        text = "\n".join(docs) if docs else ""
+        return text
     
 
     """
@@ -126,6 +148,7 @@ class RAGService:
         """
         Retrieve all previously indexed task chunks under the given projectId.
         """
+
         raw = self.vs.query(
             project_id=projectId,
             query_text="",  # return all
@@ -134,3 +157,18 @@ class RAGService:
         )
         docs = raw.get("documents", [[]])[0]
         return docs  # return as a list of text chunks
+
+
+    def delete_task(self, projectId: str, taskId: str) -> int:
+        """
+        Delete all RAG chunks associated with a specific task.
+        """
+        deleted = self.vs.delete_by_task(project_id=projectId, task_id=taskId)
+        return deleted
+
+
+    def delete_project(self, projectId: str) -> None:
+        """
+        Delete all RAG data associated with a specific project.
+        """
+        self.vs.delete_project(project_id=projectId)

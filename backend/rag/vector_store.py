@@ -28,14 +28,14 @@ class VectorStore:
         self.embed = embedding_functions.DefaultEmbeddingFunction()
 
 
-    def _collection(self, project_id: int):
+    def _collection(self, project_id: str):
         """Get or create the Chroma collection for this project."""
         return self.client.get_or_create_collection(
             name=f"proj_{project_id}", embedding_function=self.embed
         )
 
 
-    def upsert_texts(self, project_id: int, items: List[Dict[str, object]]) -> int:
+    def upsert_texts(self, project_id: str, items: List[Dict[str, object]]) -> int:
         """
         Save or update multiple text chunks at once.
         If the chunk already exists, it gets updated (upsert).
@@ -51,7 +51,7 @@ class VectorStore:
         return len(items)
 
 
-    def delete_by_task(self, project_id: int, task_id: int) -> int:
+    def delete_by_task(self, project_id: str, task_id: str) -> int:
         """Remove all chunks related to a specific task."""
         coll = self._collection(project_id)
         results = coll.get()
@@ -64,10 +64,24 @@ class VectorStore:
         return len(ids_to_del)
 
 
-    def query(self, project_id: int, query_text: str, k: int = 12, where: Optional[Dict[str, object]] = None):
+
+    def query(self, project_id: str, query_text: str, k: int = 12, where: Optional[Dict[str, object]] = None):
         """
         Find the most similar chunks for a given text.
         Used when AI wants context about a task or project.
         """
         coll = self._collection(project_id)
         return coll.query(query_texts=[query_text], n_results=k, where=where or {})
+
+
+    def delete_project(self, project_id: str) -> None:
+        """
+        Delete all vector data for a given project by dropping its collection.
+        """
+        collection_name = f"proj_{project_id}"
+        try:
+            self.client.delete_collection(name=collection_name)
+        except Exception:
+            # Ignore if collection is missing or Chroma errors.
+            pass
+

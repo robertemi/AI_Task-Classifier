@@ -1,20 +1,35 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthProvider';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { useAuth } from '@/context/AuthProvider';
 
-interface CreateProjectModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onProjectCreated: () => void;
+interface Project {
+    id: string;
+    name: string;
+    description: string;
+    user_id: string;
 }
 
-export function CreateProjectModal({ isOpen, onClose, onProjectCreated }: CreateProjectModalProps) {
+interface EditProjectModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onProjectEdited: () => void;
+  project: Project | null;
+}
+
+export function EditProjectModal({ isOpen, onClose, onProjectEdited, project }: EditProjectModalProps) {
   const { user } = useAuth();
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [newName, setNewName] = useState(project?.name || '');
+  const [newDescription, setNewDescription] = useState(project?.description || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (project) {
+      setNewName(project.name);
+      setNewDescription(project.description);
+    }
+  }, [project]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -34,33 +49,57 @@ export function CreateProjectModal({ isOpen, onClose, onProjectCreated }: Create
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      setError('You must be logged in to create a project.');
+
+    if (!user || !user.id) {
+      setError("User not authenticated.");
+      return;
+    }
+    if (!project) {
+      setError("No project selected for editing.");
+      return;
+    }
+
+    const trimmedNewName = newName.trim();
+    const trimmedNewDescription = newDescription.trim();
+
+    const isNameChanged = trimmedNewName !== project.name;
+    const isDescriptionChanged = trimmedNewDescription !== project.description;
+
+    if (!isNameChanged && !isDescriptionChanged) {
+      setError("No changes detected. Please modify the title or description.");
       return;
     }
 
     setLoading(true);
     setError(null);
 
+    const updatePayload: { projectId: string; userId: string; name?: string; description?: string } = {
+      projectId: project.id,
+      userId: user.id,
+    };
+
+    if (isNameChanged) {
+      updatePayload.name = trimmedNewName;
+    }
+    if (isDescriptionChanged) {
+      updatePayload.description = trimmedNewDescription;
+    }
+
     try {
-      const response = await fetch('https://ai-task-classifier.onrender.com/index/project', {
-        method: 'POST',
+      const response = await fetch('https://ai-task-classifier.onrender.com/index/edit/project', {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userId: user.id,
-          name,
-          description,
-        }),
+        body: JSON.stringify(updatePayload),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create project');
+        throw new Error(errorData.detail || 'Failed to edit project');
       }
 
-      onProjectCreated();
+      onProjectEdited();
       onClose();
     } catch (err: any) {
       setError(err.message);
@@ -69,26 +108,26 @@ export function CreateProjectModal({ isOpen, onClose, onProjectCreated }: Create
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !project) return null;
 
   return (
     <div onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
       <div onClick={(e) => e.stopPropagation()} className="bg-gray-900/80 border border-white/20 rounded-2xl p-8 shadow-2xl w-full max-w-md m-4">
-        <h2 className="text-white text-2xl font-bold mb-6">Create New Project</h2>
+        <h2 className="text-white text-2xl font-bold mb-6">Edit Project</h2>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
             <Input
               type="text"
-              placeholder="Project Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              placeholder="Project Title"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
               className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 focus:ring-blue-400/50 focus:bg-white/20 transition-all text-sm rounded-xl px-4"
               required
             />
             <textarea
               placeholder="Project Description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={newDescription}
+              onChange={(e) => setNewDescription(e.target.value)}
               className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 transition-all text-sm"
               rows={4}
             />
@@ -99,7 +138,7 @@ export function CreateProjectModal({ isOpen, onClose, onProjectCreated }: Create
               Cancel
             </Button>
             <Button type="submit" disabled={loading} className="bg-gradient-to-r from-indigo-700 to-purple-800 text-white">
-              {loading ? 'Creating...' : 'Create Project'}
+              {loading ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </form>

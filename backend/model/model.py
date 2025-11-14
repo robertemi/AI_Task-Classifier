@@ -4,13 +4,31 @@ import json
 import re
 import httpx
 
-from backend.rag.retriever import RAGService
 from backend.types.types import (
     IndexEnrichedTaskRequest,
     IndexTaskRequest,
     EnrichResult
 )
 from backend.service.task_service import TaskService
+from backend.rag.retriever import RAGService
+from backend.core.config import get_redis_client
+
+
+task_service = TaskService()
+_rag = RAGService()
+http_client: httpx.AsyncClient | None = None
+_redis_client = None
+
+async def ensure_redis_client():
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = await get_redis_client()
+
+async def get_http_client() -> httpx.AsyncClient:
+    global http_client
+    if http_client is None:
+        http_client = httpx.AsyncClient(timeout=15)
+    return http_client
 
 
 load_dotenv()
@@ -35,6 +53,64 @@ SYSTEM_PROMPT = (
     "5. Output only the final, improved task description — no explanations or commentary.\n"
 )
 
+model_providers = {
+    1 : 'deepseek/deepseek-chat-v3.1:free',
+    2 : 'openai/gpt-oss-20b:free',
+    3 : 'meta-llama/llama-3.3-8b-instruct:free'
+}
+
+async def get_project_context(project_id: str, user_id: str):
+    await ensure_redis_client()
+    cache_key = f'user:{user_id}:project:{project_id}:embeddings'
+
+    # look for cached project
+    cached = await _redis_client.get(cache_key)
+    if cached:
+        print(f'cache hit for {cache_key}')
+        return cached
+
+    print(f'cache missed for {cache_key}')    
+    # if not cached, query RAG
+    project_text = _rag.get_project_by_id(project_id)
+
+    # save to cache
+    if project_text:
+        await _redis_client.set(cache_key, project_text, ex=3600) 
+
+    return project_text
+
+
+async def get_previous_tasks_context(project_id: str):
+    await ensure_redis_client()
+    cache_key = f"project:{project_id}:tasks"
+
+    cached = await _redis_client.get(cache_key)
+    if cached:
+        try:
+            tasks = json.loads(cached)
+            print(f'cache hit for {cache_key}')
+            return "\n\n".join(t["text"] if isinstance(t, dict) else t for t in tasks)
+        except json.JSONDecodeError:
+            pass
+
+    print(f'cache miss for {cache_key}')
+    previous_tasks = _rag.get_previous_tasks(project_id)
+    await _redis_client.set(cache_key, json.dumps(previous_tasks), ex=3600)
+
+    return "\n\n".join(previous_tasks)
+
+
+async def get_context(project_id: str, user_id: str, new_task_title: str, new_task_user_description: str):
+    project_text = await get_project_context(project_id, user_id)
+    previous_tasks_text = await get_previous_tasks_context(project_id)
+
+    context = (
+        f"PROJECT OVERVIEW:\n{project_text}\n\n"
+        f"PREVIOUS TASKS:\n{previous_tasks_text}\n\n"
+        f"NEW TASK:\ntask_Title: {new_task_title}\nDescription: {new_task_user_description}\n"
+    )
+
+    return context
 
 
 """
@@ -64,110 +140,91 @@ Returns:
 async def enrich_task_details(
         req: IndexTaskRequest
 ):
-    
-    service = TaskService()
-    
-    rag = RAGService()
 
-    project_text = rag.get_project_by_id(req.projectId)
-
-    previous_tasks = rag.get_previous_tasks(req.projectId)
-    previous_tasks_text = "\n\n".join(previous_tasks)
-
-    # combined project details and previous tasks into context
-    context = (
-        f"PROJECT OVERVIEW:\n{project_text}\n\n"
-        f"PREVIOUS TASKS:\n{previous_tasks_text}\n\n"
-        f"NEW TASK:\ntask_Title: {req.task_title}\nDescription: {req.user_description}\n"
+    context = await get_context(
+        req.projectId,
+        req.userId,
+        req.task_title,
+        req.user_description
     )
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            data=json.dumps({
-                "model": "deepseek/deepseek-chat-v3.1:free",
-                "messages": [
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT
-                },
-                {
-                    "role": "user",
-                    "content": context
-                }
-                ],
-                "max_tokens": 800
-            })
-        )
+    client = await get_http_client()
 
-        data = response.json()
+    response = await client.post(
+        url="https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({
+            "model": model_providers[req.selected_model],
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": context}
+            ],
+            "max_tokens": 1000
+        })
+    )
 
-        if response.status_code != 200:
-            print('OpenRouter error')
-            raise RuntimeError('Openrouter API Error')
-        
-        if 'choices' not in data:
-            print('Unexpected Openrouter error')
-            raise RuntimeError('Unexpected Openrouter response')
+    data = response.json()
 
-        ai_output = data["choices"][0]["message"]["content"].strip()
+    if response.status_code != 200:
+        print(f'OpenRouter error: {data}')
+        raise RuntimeError(f'Openrouter API Error: {data}')
 
-        # also extract story points
-        match = re.search(
-            r"(?:\*\*)?\s*Story\s*Points\s*[:\-–]\s*(\d+)\s*(?:\*\*)?",
-            ai_output,
-            re.IGNORECASE | re.MULTILINE
-        )
+    if 'choices' not in data:
+        print('Unexpected Openrouter error')
+        raise RuntimeError('Unexpected Openrouter response')
 
-        ai_story_points = int(match.group(1)) if match else DEFAULT_STORY_POINTS
+    ai_output = data["choices"][0]["message"]["content"].strip()
 
-        ai_description = re.sub(
-            r"\*{0,2}\s*Story\s*Points\s*[:\-–]\s*\d+\s*\*{0,2}", 
-            "", 
-            ai_output, 
-            flags=re.IGNORECASE
-        ).strip()
+    # also extract story points
+    match = re.search(
+        r"(?:\*\*)?\s*Story\s*Points\s*[:\-–]\s*(\d+)\s*(?:\*\*)?",
+        ai_output,
+        re.IGNORECASE | re.MULTILINE
+    )
 
+    ai_story_points = int(match.group(1)) if match else DEFAULT_STORY_POINTS
 
-        pretty_description = (
-            ai_description
-            .replace("**", "")                 
-            .replace("\\n", "\n")              
-            .replace("\n\n", "\n")             
-            .strip()
-        )
+    ai_description = re.sub(
+        r"\*{0,2}\s*Story\s*Points\s*[:\-–]\s*\d+\s*\*{0,2}",
+        "",
+        ai_output,
+        flags=re.IGNORECASE
+    ).strip()
 
-        pretty_context_text = (
-            context
-            .replace("\\n", "\n")     # fix double-escaped newlines
-            .replace("\n\n", "\n")    # collapse extra line breaks
-            .replace("**", "")        # remove markdown bold markers
-            .strip()
-        )
+    pretty_description = (
+        ai_description
+        .replace("**", "")
+        .replace("\\n", "\n")
+        .replace("\n\n", "\n")
+        .strip()
+    )
 
-        # persists newly created task to RAG
+    pretty_context_text = (
+        context
+        .replace("\\n", "\n")
+        .replace("\n\n", "\n")
+        .replace("**", "")
+        .strip()
+    )
 
-        enriched_task = IndexEnrichedTaskRequest(
-            projectId=req.projectId,
-            taskId=None, # generated later when inserting into the DB,
-            task_title=req.task_title,
-            user_description=req.user_description,
-            ai_description=ai_description,
-            status='todo',
-            version=1
-        )
+    enriched_task = IndexEnrichedTaskRequest(
+        projectId=req.projectId,
+        taskId=None,
+        task_title=req.task_title,
+        user_description=req.user_description,
+        ai_description=ai_description,
+        status='todo',
+        version=1
+    )
 
-        # insert new task into DB
-        service.create_task(enriched_task)
+    await task_service.create_task(enriched_task)
 
-        # just for logging purposes
-        return EnrichResult(
-            ai_description=pretty_description,
-            story_points=ai_story_points,
-            used_context_ids=['project_text', 'previous_tasks_text'],
-            used_context_text=pretty_context_text
-        ).model_dump()
+    return EnrichResult(
+        ai_description=pretty_description,
+        story_points=ai_story_points,
+        used_context_ids=['project_text', 'previous_tasks_text'],
+        used_context_text=pretty_context_text
+    ).model_dump()

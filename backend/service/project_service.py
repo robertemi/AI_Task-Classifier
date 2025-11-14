@@ -1,20 +1,35 @@
 from __future__ import annotations
 
 from backend.core.config import get_supabase_client
-from backend.types.types import IndexProjectRequest
+from backend.types.types import (
+    IndexProjectRequest,
+    EditProjectRequest,
+    DeleteProjectRequest
+)
 from backend.rag.retriever import RAGService
+from backend.core.config import get_redis_client
+
 
 class ProjectService:
 
     def __init__(self) -> None:
-        self._client = get_supabase_client() 
         self._rag = RAGService()
+        self._supabase_client = None
+        self._redis_client = None
 
 
-    def create_project(self, req: IndexProjectRequest) -> bool:
+    async def ensure_clients(self):
+        if self._supabase_client is None:
+            self._supabase_client = await get_supabase_client()
+        if self._redis_client is None:
+            self._redis_client = await get_redis_client()
+
+
+    async def create_project(self, req: IndexProjectRequest):
+        await self.ensure_clients()
         try:
             response = (
-                self._client.table('projects')
+                self._supabase_client.table('projects')
                 .insert(
                     {
                         "user_id": req.userId,
@@ -23,8 +38,8 @@ class ProjectService:
                         "description": req.description
                     }
                 )
-                .execute()
             )
+            response = await response.execute()
 
             if response.data:
                 new_id = response.data[0]['id']
@@ -36,6 +51,12 @@ class ProjectService:
                         description=req.description
                     )
                 )
+
+                # cache newly created project
+                cache_key = f'user:{req.userId}:project:{new_id}:embeddings'
+                project_text = self._rag.get_project_by_id(new_id)
+                await self._redis_client.setex(cache_key, 1800, project_text)                
+
                 return True
             
             else:
@@ -44,3 +65,82 @@ class ProjectService:
             
         except Exception as e:
             print(f'Unhandled exception in insert project: {e}')
+
+    
+    async def update_project(self, req: EditProjectRequest):
+        await self.ensure_clients()
+        try:
+            update_data = {
+                **({"name": req.name} if req.name else {}),
+                **({"description": req.description} if req.description else {})
+            }
+
+            response = (
+                self._supabase_client
+                .table('projects')
+                .update(update_data)
+                .eq("id", req.projectId)
+            )
+            response = await response.execute()
+
+            if response.data:
+                row = response.data[0]
+                # resync project in RAG with latest update
+                self._rag.index_project(
+                    IndexProjectRequest(
+                        projectId=row["id"],
+                        userId=row.get("user_id", req.userId),
+                        name=row["name"],
+                        description=row.get("description", ""),
+                        status=row.get("status")
+                    )
+                )
+
+                # invalidate cache before saving edited project
+                cache_key=f'user:{req.userId}:project:{req.projectId}:embeddings'
+                await self._redis_client.delete(cache_key)
+
+                # cache edited project
+                edited_project_text = self._rag.get_project_by_id(req.projectId)
+                await self._redis_client.setex(cache_key, 1800, edited_project_text)
+
+                return True
+            else:
+                print(f'Update project {req.projectId} failed: not found')
+                return False
+
+        except Exception as e:
+            print(f'Unhandled exception in update project: {e}')
+            return False
+
+    async def delete_project(self, req: DeleteProjectRequest):
+        await self.ensure_clients()
+        try:
+            if not req.projectId or not req.userId:
+                print("Missing required fields in delete_project:", req)
+                return False
+
+            response = (
+                self._supabase_client
+                .table('projects')
+                .delete()
+                .match({
+                    "id": req.projectId,
+                    "user_id": req.userId
+                })
+            )
+
+            response = await response.execute()
+
+            print("Supabase delete response:", response.data)
+
+        
+            self._rag.delete_project(str(req.projectId))
+            cache_key = f"user:{req.userId}:project:{req.projectId}:embeddings"
+            await self._redis_client.delete(cache_key)
+
+            return True
+
+        except Exception as e:
+            print(f'Unhandled exception in delete project: {e}')
+            return False

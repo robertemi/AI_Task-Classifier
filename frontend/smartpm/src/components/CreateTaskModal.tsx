@@ -1,18 +1,37 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { ChevronDown } from 'lucide-react';
+import { useAuth } from '@/context/AuthProvider'; // Import useAuth hook
 
 interface CreateTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onTaskCreated: () => void;
   projectId: string;
+  status: "todo" | "inProgress" | "inReview" | "done" | "none";
 }
 
-export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: CreateTaskModalProps) {
+const model_providers = {
+    '1' : 'Deepseek (3.1)',
+    '2' : 'OpenAI (gpt-oss-20b)',
+    '3' : 'Meta-Llama (llama-3.3-8b-instruct)'
+};
+
+// Mapping from frontend status to backend status
+const statusMap = {
+    todo: 'todo',
+    inProgress: 'in_progress',
+    inReview: 'in_review',
+    done: 'done',
+    none: 'todo',
+};
+
+export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId, status }: CreateTaskModalProps) {
+  const { user } = useAuth();
   const [task_title, setTaskTitle] = useState('');
   const [user_description, setUserDescription] = useState('');
-  const [model, setModel] = useState('');
+  const [model, setModel] = useState('1');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,8 +54,15 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: C
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!user) {
+      setError("User not authenticated.");
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
+    const backendStatus = statusMap[status] || 'todo';
 
     try {
       const response = await fetch('https://ai-task-classifier.onrender.com/index/task/enrich_and_index', {
@@ -48,8 +74,9 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: C
           projectId,
           task_title,
           user_description,
-          status: "todo",
-            model,
+          selected_model: parseInt(model, 10),
+          status: backendStatus,
+          userId: user.id,
         }),
       });
 
@@ -70,8 +97,8 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: C
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-gray-900/80 border border-white/20 rounded-2xl p-8 shadow-2xl w-full max-w-md m-4">
+    <div onClick={onClose} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+      <div onClick={(e) => e.stopPropagation()} className="bg-gray-900/80 border border-white/20 rounded-2xl p-8 shadow-2xl w-full max-w-md m-4">
         <h2 className="text-white text-2xl font-bold mb-6">Create New Task</h2>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
@@ -80,16 +107,36 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId }: C
               placeholder="Task Title"
               value={task_title}
               onChange={(e) => setTaskTitle(e.target.value)}
-              className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 focus:ring-blue-400/50 focus:bg-white/20 transition-all"
+              className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 focus:ring-blue-400/50 focus:bg-white/20 transition-all text-sm rounded-xl px-4"
               required
             />
             <textarea
               placeholder="Task Description"
               value={user_description}
               onChange={(e) => setUserDescription(e.target.value)}
-              className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 transition-all"
+              className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 transition-all text-sm"
               rows={4}
             />
+            <div>
+              <label htmlFor="model-provider" className="block text-sm font-medium text-gray-300 mb-2">AI Model Provider</label>
+              <div className="relative">
+                <select
+                  id="model-provider"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 transition-all text-sm appearance-none pr-8"
+                >
+                  {Object.entries(model_providers).map(([id, name]) => (
+                    <option key={id} value={id} className="bg-gray-800 text-white">
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+            </div>
           </div>
           {error && <p className="text-red-400 text-sm mt-4">{error}</p>}
           <div className="flex justify-end gap-4 mt-6">
