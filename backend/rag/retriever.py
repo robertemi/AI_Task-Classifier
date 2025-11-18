@@ -69,6 +69,7 @@ class RAGService:
                 "epic": req.epic,
                 "user_description": req.user_description,
                 "ai_description": req.ai_description,
+                "story_points": req.story_points,
                 # "version": req.version, 
                 "hash": sha256_of(ch),
             },
