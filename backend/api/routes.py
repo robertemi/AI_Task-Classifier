@@ -191,8 +191,6 @@ async def generate_project_handbook_pdf(req: ProjectHandbookRequest):
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
-
-    except HTTPException:
-        raise
     except Exception as e:
+        print(f'Unexpected error in project handbook route: {e}')
         raise HTTPException(status_code=500, detail=f"Handbook generation failed: {e}") from e

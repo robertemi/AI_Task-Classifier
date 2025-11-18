@@ -114,4 +114,4 @@ class IndexResponse(BaseModel):
 class ProjectHandbookRequest(BaseModel):
     userId: str
     projectId: str
-    selected_model: int = 1  # TODO make this dynamic
+    selected_model: int = 2  # TODO make this dynamic

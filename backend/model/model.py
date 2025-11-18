@@ -372,7 +372,7 @@ async def load_tasks_from_supabase(project_id: str) -> list[dict]:
     response = (
         supabase
         .table("tasks")
-        .select("id, project_id, title, description, ai_description, status, story_points, epic, created_at, updated_at")
+        .select("id, project_id, title, description, ai_description, status, story_points, created_at, updated_at")
         .eq("project_id", project_id)
         .order("created_at")
     )
@@ -408,7 +408,6 @@ async def generate_project_handbook_text(req: ProjectHandbookRequest) -> str:
             "title": row.get("title", ""),
             "status": row.get("status", ""),
             "story_points": row.get("story_points"),
-            "epic": row.get("epic"),
             "user_description": row.get("description") or "",
             "ai_description": row.get("ai_description") or "",
             "created_at": row.get("created_at"),
