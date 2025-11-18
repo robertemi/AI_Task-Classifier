@@ -37,7 +37,7 @@ class TaskService:
                         "title": req.task_title,
                         "description": req.user_description,
                         "ai_description": req.ai_description,
-                        "story_points": "5",
+                        "story_points": req.story_points,
                         "status": req.status,
                     }
                 )
@@ -58,6 +58,7 @@ class TaskService:
                         ai_description=req.ai_description,
                         epic=req.epic,
                         status=req.status,
+                        story_points=req.story_points
                     )
                 )
 
@@ -72,7 +73,8 @@ class TaskService:
                         req.task_title,
                         req.user_description or "",
                         req.ai_description or ""
-                    ]).strip()
+                    ]).strip(),
+                    "story_points": req.story_points
                 }
 
                 # get previously cached tasks
@@ -103,80 +105,100 @@ class TaskService:
     # it doesn't overwrite the id/project_id in update data. After DB update -> it will call _rag.index_task with the latest row.
     # index_task uses upsert -> RAG is updated.
     async def update_task(self, req: EditEnrichedTaskRequest):
+        from backend.model.model import enrich_edited_task  # local import avoids circular init
         await self.ensure_clients()
         try:
-            # Only update provided fields
-            update_data = {
-                **({"title": req.task_title} if req.task_title else {}),
-                **({"description": req.user_description} if req.user_description else {}),
-                **({"ai_description": req.ai_description} if req.ai_description else {})
-            }
+                needs_ai_regeneration = bool(req.task_title or req.user_description)
+                new_ai_description, new_ai_story_points = None, None
 
-            if not update_data:
-                print("No fields to update for task", req.taskId)
-                return False
-
-            response = (
-                self._supabase_client
-                .table("tasks")
-                .update(update_data)
-                .match({
-                    "id": req.taskId,
-                    "project_id": req.projectId
-                })
-            )
-
-            response = await response.execute()
-
-            if response.data and len(response.data) > 0:
-                row = response.data[0]
-                # Re-sync updated task in RAG
-                self._rag.index_task(
-                    IndexEnrichedTaskRequest(
-                        taskId=row["id"],
-                        projectId=row["project_id"],
-                        task_title=row.get("title", ""),
-                        user_description=row.get("description", "") or "",
-                        ai_description=row.get("ai_description", "") or "",
-                        epic=row.get("epic"),
-                        status=row.get("status"),
+                if needs_ai_regeneration:
+                    new_ai_description, new_ai_story_points = await enrich_edited_task(
+                        taskId=req.taskId,
+                        projectId=req.projectId,
+                        user_id=req.userId,
+                        new_task_title=req.task_title,
+                        new_task_user_description=req.user_description
                     )
+
+                # Only update provided fields
+                update_data = {
+                    **({"title": req.task_title} if req.task_title else {}),
+                    **({"description": req.user_description} if req.user_description else {}),
+                    **(
+                        {"ai_description": new_ai_description}
+                        if needs_ai_regeneration
+                        else ({"ai_description": req.ai_description} if req.ai_description else {})
+                    ),
+                    **({"story_points": new_ai_story_points} if needs_ai_regeneration else {}),
+                }
+
+
+                if not update_data:
+                    print("No fields to update for task", req.taskId)
+                    return False
+
+                response = (
+                    self._supabase_client
+                    .table("tasks")
+                    .update(update_data)
+                    .match({
+                        "id": req.taskId,
+                        "project_id": req.projectId
+                    })
                 )
 
-                # cache edited task
-                cache_key = f'project:{req.projectId}:tasks'
-                # get previously cached tasks
-                cached = await self._redis_client.get(cache_key)
-                tasks = json.loads(cached) if cached else []
+                response = await response.execute()
 
-                new_task_entry = {
-                    "taskId": req.taskId,
-                    "title": row.get("title", req.task_title or ""),
-                    "user_description": row.get("description", req.user_description or ""),
-                    "ai_description": row.get("ai_description", req.ai_description or ""),
-                }
-                new_task_entry['text'] = "\n".join([
-                    new_task_entry['title'],
-                    new_task_entry['user_description'],
-                    new_task_entry['ai_description'],
-                ]).strip()
+                if response.data and len(response.data) > 0:
+                    row = response.data[0]
+                    # Re-sync updated task in RAG
+                    self._rag.index_task(
+                        IndexEnrichedTaskRequest(
+                            taskId=row["id"],
+                            projectId=row["project_id"],
+                            task_title=row.get("title", ""),
+                            user_description=row.get("description", "") or "",
+                            ai_description=row.get("ai_description", "") or "",
+                            epic=row.get("epic"),
+                            story_points=int(row.get("story_points", "")) or 0,
+                            status=row.get("status"),
+                        )
+                    )
 
-                task_id = str(req.taskId).strip()
+                    # cache edited task
+                    cache_key = f'project:{req.projectId}:tasks'
+                    # get previously cached tasks
+                    cached = await self._redis_client.get(cache_key)
+                    tasks = json.loads(cached) if cached else []
 
-                for i, t in enumerate(tasks):
-                    cached_id = str(t.get("taskId")).strip() if t.get("taskId") else ""
-                    if cached_id == task_id:
-                        tasks[i] = new_task_entry
-                
-                        break
-                else:
-                    tasks.append(new_task_entry)
+                    new_task_entry = {
+                        "taskId": req.taskId,
+                        "title": row.get("title", req.task_title or ""),
+                        "user_description": row.get("description", req.user_description or ""),
+                        "ai_description": row.get("ai_description", req.ai_description or ""),
+                    }
+                    new_task_entry['text'] = "\n".join([
+                        new_task_entry['title'],
+                        new_task_entry['user_description'],
+                        new_task_entry['ai_description'],
+                    ]).strip()
 
-                await self._redis_client.set(cache_key, json.dumps(tasks), ex=1800)
-                return True
+                    task_id = str(req.taskId).strip()
 
-            print(f"Update task {req.taskId} or User has no permission on given task")
-            return False
+                    for i, t in enumerate(tasks):
+                        cached_id = str(t.get("taskId")).strip() if t.get("taskId") else ""
+                        if cached_id == task_id:
+                            tasks[i] = new_task_entry
+                    
+                            break
+                    else:
+                        tasks.append(new_task_entry)
+
+                    await self._redis_client.set(cache_key, json.dumps(tasks), ex=1800)
+                    return True
+
+                print(f"Update task {req.taskId} or User has no permission on given task")
+                return False                
 
         except Exception as e:
             print(f"Unhandled exception in update task: {e}")
