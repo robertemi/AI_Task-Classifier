@@ -1,6 +1,7 @@
 import json
+import io
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from backend.types.types import (
     EnrichTaskRequest,
@@ -10,10 +11,10 @@ from backend.types.types import (
     EditProjectRequest,
     EditEnrichedTaskRequest,
     DeleteProjectRequest,
-    DeleteEnrichedTaskRequest
+    DeleteEnrichedTaskRequest, ProjectHandbookRequest
 )
 from backend.rag.retriever import RAGService
-from backend.model.model import enrich_task_details
+from backend.model.model import enrich_task_details, generate_project_handbook_text, handbook_text_to_pdf_bytes
 from backend.service.project_service import ProjectService
 from backend.service.task_service import TaskService
 
@@ -163,3 +164,35 @@ async def delete_task(req: DeleteEnrichedTaskRequest) -> IndexResponse:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Task deletion failed: {e}") from e
+
+@router.post("/project/handbook/pdf")
+async def generate_project_handbook_pdf(req: ProjectHandbookRequest):
+    """
+    Generate a structured project handbook using the LLM and return it as a downloadable PDF.
+    This uses only Supabase data (no Redis or RAG in this flow).
+    """
+    try:
+        # generate handbook text from Supabase data
+        handbook_text = await generate_project_handbook_text(req)
+
+        if not handbook_text:
+            raise HTTPException(status_code=404, detail="No handbook content could be generated.")
+
+        # convert text to PDF bytes
+        pdf_bytes = handbook_text_to_pdf_bytes(
+            handbook_text,
+            title=f"Project {req.projectId} - Handbook"
+        )
+
+        # stream the PDF back to the client
+        filename = f"project_{req.projectId}_handbook.pdf"
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Handbook generation failed: {e}") from e

@@ -110,3 +110,8 @@ class IndexResponse(BaseModel):
     ok: bool
     data: Optional[Dict[str, Any]] = None
     detail: Optional[str] = None
+
+class ProjectHandbookRequest(BaseModel):
+    userId: str
+    projectId: str
+    selected_model: int = 1  # TODO make this dynamic
