@@ -15,7 +15,7 @@ coloredlogs==15.0.1
 cryptography==46.0.3
 deprecation==2.1.0
 distro==1.9.0
-dotenv==0.9.9
+#dotenv==0.9.9 conflict with python-dotenv
 durationpy==0.10
 fastapi==0.120.4
 filelock==3.20.0
@@ -80,7 +80,6 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 PyYAML==6.0.3
 realtime==2.23.2
-redis==7.0.1
 referencing==0.37.0
 requests==2.32.5
 requests-oauthlib==2.0.0
@@ -107,10 +106,12 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 urllib3==2.3.0
 uvicorn==0.38.0
-uvloop==0.22.1
+#uvloop==0.22.1
 watchfiles==1.1.1
 websocket-client==1.9.0
 websockets==15.0.1
 wheel==0.45.1
 yarl==1.22.0
 zipp==3.23.0
+redis==5.0.7
+reportlab
