@@ -1,17 +1,26 @@
-import { useState, useEffect } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/router"
 import { useAuth } from "@/context/AuthProvider"
 import Landing from "@/components/Landing"
-import Login from "@/components/Login"
 
 export default function HomePage() {
     const { session } = useAuth()
     const router = useRouter()
-    const [view, setView] = useState<"landing" | "login">("landing")
 
     useEffect(() => {
         if (session) {
-            router.push("/projects")
+            // If the URL contains an auth/reset token (Supabase often includes
+            // tokens in the fragment or query when redirecting), don't auto-redirect
+            // away — allow pages like /reset-password or token-based flows to handle it.
+            if (typeof window !== 'undefined') {
+                const hash = window.location.hash || ''
+                const search = window.location.search || ''
+                const hasTokenInHash = hash.includes('access_token=') || hash.includes('type=recovery')
+                const hasTokenInQuery = search.includes('access_token=') || search.includes('type=recovery')
+                if (hasTokenInHash || hasTokenInQuery) return
+            }
+
+            router.push('/projects')
         }
     }, [session, router])
 
@@ -19,11 +28,7 @@ export default function HomePage() {
 
     return (
         <div>
-            {view === "landing" ? (
-                <Landing onStart={() => setView("login")} />
-            ) : (
-                <Login onBack={() => setView("landing")} />
-            )}
+            <Landing onStart={() => router.push('/login')} />
         </div>
     )
 }

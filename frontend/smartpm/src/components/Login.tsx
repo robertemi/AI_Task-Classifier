@@ -1,37 +1,93 @@
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Form } from '@/components/ui/form' //later for a more comlpex form validation
+import {
+    Form,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormControl,
+    FormMessage,
+    FormDescription,
+} from '@/components/ui/form'
+import { useForm, useWatch } from 'react-hook-form'
+import { passwordValid } from '@/lib/passwordValidators'
+import PasswordChecklist from '@/components/ui/PasswordChecklist'
+import { useRouter } from 'next/router'
+import { useAuth } from '@/context/AuthProvider'
+import { Eye, EyeOff } from 'lucide-react'
+import Link from 'next/link'
 import TiltedCard from './TiltedCard'
 
 export default function Login({ onBack }: { onBack?: () => void }) {
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
+    // form handled with react-hook-form so we can show robust validation messages
+    const form = useForm({
+        defaultValues: { email: '', password: '', confirmPassword: '' },
+        mode: 'onTouched',
+    })
+    const {
+        control,
+        getValues,
+        handleSubmit: rhfHandleSubmit,
+        setError: setFieldError,
+        formState: { errors },
+    } = form
+
+    const [showPassword, setShowPassword] = useState(false)
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [isSignUp, setIsSignUp] = useState(false)
 
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault()
+    const router = useRouter()
+    const { session } = useAuth()
+
+    useEffect(() => {
+        if (session) router.push('/projects')
+    }, [session, router])
+
+    // reactive watch for password/confirm for checklist
+    const watchedPassword = useWatch({ control, name: 'password', defaultValue: '' })
+    const watchedConfirm = useWatch({ control, name: 'confirmPassword', defaultValue: '' })
+
+    async function onSubmit(values: { email: string; password: string; confirmPassword?: string }) {
         setLoading(true)
         setError(null)
 
         try {
             if (isSignUp) {
+                if (!passwordValid(values.password)) {
+                    setFieldError('password', { message: 'Password must be at least 8 characters, include upper/lower case, a number and a special character' })
+                    setLoading(false)
+                    return
+                }
+                if (values.password !== values.confirmPassword) {
+                    // Set field error on confirmPassword
+                    setFieldError('confirmPassword', { message: 'Passwords do not match' })
+                    setLoading(false)
+                    return
+                }
                 const { error } = await supabase.auth.signUp({
-                    email,
-                    password
+                    email: values.email,
+                    password: values.password,
                 })
                 if (error) throw error
+                // When signing up, supabase may not automatically sign the user in
+                // depending on Auth settings (autoconfirm). If a session exists we'll redirect.
+                if (!error && !session) {
+                    // We may optionally show message instructing user to confirm their email
+                }
             } else {
                 const { error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password
+                    email: values.email,
+                    password: values.password,
                 })
                 if (error) throw error
+                // On success, Supabase SDK should set session and trigger onAuthStateChange. We'll redirect as a fallback.
+                router.push('/projects')
             }
         } catch (err: any) {
             setError(err.message || String(err))
@@ -39,6 +95,10 @@ export default function Login({ onBack }: { onBack?: () => void }) {
             setLoading(false)
         }
     }
+
+    const canSubmit = isSignUp
+        ? watchedPassword.length > 0 && passwordValid(watchedPassword) && watchedConfirm === watchedPassword && watchedConfirm.length > 0
+        : true
 
     return (
         <div className="relative flex min-h-screen items-center justify-center overflow-hidden">
@@ -87,43 +147,150 @@ export default function Login({ onBack }: { onBack?: () => void }) {
                                     </p>
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="space-y-5">
+                                <Form {...form}>
+                                    <form onSubmit={rhfHandleSubmit(onSubmit)} className="space-y-5">
                                     <div className="space-y-2">
-                                        <Label htmlFor="email" className="text-white">Email address</Label>
-                                        <Input className='text-white'
-                                               id="email"
-                                               type="email"
-                                               placeholder="you@example.com"
-                                               value={email}
-                                               onChange={(e) => setEmail(e.target.value)}
-                                               required
-                                               disabled={loading}
+                                        <FormField
+                                            control={control}
+                                            name="email"
+                                            rules={{
+                                                required: 'Email is required',
+                                                pattern: {
+                                                    value: /^\S+@\S+\.\S+$/,
+                                                    message: 'Invalid email address',
+                                                },
+                                            }}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-white">Email address</FormLabel>
+                                                    <FormControl>
+                                                        <Input
+                                                            id="email"
+                                                            type="email"
+                                                            placeholder="you@example.com"
+                                                            className="text-white"
+                                                            {...field}
+                                                            disabled={loading}
+                                                        />
+                                                    </FormControl>
+                                                    {isSignUp && (
+                                                        <div className="mt-2">
+                                                            <PasswordChecklist password={watchedPassword} confirm={watchedConfirm} />
+                                                        </div>
+                                                    )}
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
                                         />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="password" className="text-white">Password</Label>
-                                        <Input className='text-white'
-                                               id="password"
-                                               type="password"
-                                               placeholder="••••••••"
-                                               value={password}
-                                               onChange={(e) => setPassword(e.target.value)}
-                                               required
-                                               disabled={loading}
+                                        <FormField
+                                            control={control}
+                                            name="password"
+                                            rules={{
+                                                required: 'Password is required',
+                                                minLength: {
+                                                    value: 8,
+                                                    message: 'Password must be at least 8 characters',
+                                                },
+                                                pattern: {
+                                                    value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).+$/,
+                                                    message: 'Password must include upper/lower case, a number, and a special character',
+                                                },
+                                            }}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-white">Password</FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <Input
+                                                                id="password"
+                                                                type={showPassword ? 'text' : 'password'}
+                                                                placeholder="••••••••"
+                                                                className="text-white pr-10"
+                                                                {...field}
+                                                                disabled={loading}
+                                                            />
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                onClick={() => setShowPassword((s) => !s)}
+                                                                className="absolute right-1 top-1/2 -translate-y-1/2 text-white"
+                                                                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                                            >
+                                                                {showPassword ? (
+                                                                    <EyeOff className="h-4 w-4" />
+                                                                ) : (
+                                                                    <Eye className="h-4 w-4" />
+                                                                )}
+                                                            </Button>
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormDescription className="text-white/80">
+                                                        Password should be at least 8 characters, include upper and lower case letters, a number and a special character.
+                                                    </FormDescription>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
                                         />
+
+                                        {isSignUp && (
+                                            <FormField
+                                                control={control}
+                                                name="confirmPassword"
+                                                rules={{
+                                                    required: 'Please confirm your password',
+                                                    validate: (v) => v === getValues().password || 'Passwords do not match',
+                                                }}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-white">Confirm password</FormLabel>
+                                                        <FormControl>
+                                                            <div className="relative">
+                                                                <Input
+                                                                    id="confirmPassword"
+                                                                    type={showConfirmPassword ? 'text' : 'password'}
+                                                                    placeholder="••••••••"
+                                                                    className="text-white pr-10"
+                                                                    {...field}
+                                                                    disabled={loading}
+                                                                />
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => setShowConfirmPassword((s) => !s)}
+                                                                    className="absolute right-1 top-1/2 -translate-y-1/2 text-white"
+                                                                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                                                                >
+                                                                    {showConfirmPassword ? (
+                                                                        <EyeOff className="h-4 w-4" />
+                                                                    ) : (
+                                                                        <Eye className="h-4 w-4" />
+                                                                    )}
+                                                                </Button>
+                                                            </div>
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
                                     </div>
 
-                                    {error && (
+                                        {error && (
                                         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
                                             {error}
                                         </div>
                                     )}
 
-                                    <Button type="submit" disabled={loading} className="w-full text-white">
+                                        <Button type="submit" disabled={loading || (isSignUp && !canSubmit)} className="w-full text-white">
                                         {loading ? 'Please wait...' : isSignUp ? 'Create account' : 'Sign in'}
                                     </Button>
-                                </form>
+                                    </form>
+                                </Form>
 
                                 <div className="text-center mt-4">
                                     <Button
@@ -133,6 +300,13 @@ export default function Login({ onBack }: { onBack?: () => void }) {
                                     >
                                         {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
                                     </Button>
+                                    {!isSignUp && (
+                                        <div className="mt-2">
+                                            <Link href="/forgot-password" className="text-sm text-white/80 hover:underline">
+                                                Forgot password?
+                                            </Link>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
