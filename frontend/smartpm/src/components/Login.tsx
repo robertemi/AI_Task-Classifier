@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { Button } from '@/components/ui/button'
@@ -19,10 +18,12 @@ import PasswordChecklist from '@/components/ui/PasswordChecklist'
 import { useRouter } from 'next/router'
 import { useAuth } from '@/context/AuthProvider'
 import { Eye, EyeOff } from 'lucide-react'
+import { Github, Globe } from 'lucide-react'
 import Link from 'next/link'
 import TiltedCard from './TiltedCard'
 
 export default function Login({ onBack }: { onBack?: () => void }) {
+
     // form handled with react-hook-form so we can show robust validation messages
     const form = useForm({
         defaultValues: { email: '', password: '', confirmPassword: '' },
@@ -40,7 +41,9 @@ export default function Login({ onBack }: { onBack?: () => void }) {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [message, setMessage] = useState<string | null>(null)
     const [isSignUp, setIsSignUp] = useState(false)
+    const [oauthLoading, setOauthLoading] = useState({ google: false, github: false })
 
     const router = useRouter()
     const { session } = useAuth()
@@ -70,15 +73,21 @@ export default function Login({ onBack }: { onBack?: () => void }) {
                     setLoading(false)
                     return
                 }
-                const { error } = await supabase.auth.signUp({
+                const { error, data } = await supabase.auth.signUp({
                     email: values.email,
                     password: values.password,
                 })
                 if (error) throw error
-                // When signing up, supabase may not automatically sign the user in
+                // When signing up, Supabase may not autologin (autoconfirm disabled)
                 // depending on Auth settings (autoconfirm). If a session exists we'll redirect.
-                if (!error && !session) {
-                    // We may optionally show message instructing user to confirm their email
+                if (!error) {
+                    if (!session) {
+                        setMessage('Account created. Please check your email to verify your account. Redirecting to login...')
+                        setTimeout(() => router.push('/login'), 5000)
+                    } else {
+                        // Already signed in, redirect to projects
+                        router.push('/projects')
+                    }
                 }
             } else {
                 const { error } = await supabase.auth.signInWithPassword({
@@ -96,6 +105,29 @@ export default function Login({ onBack }: { onBack?: () => void }) {
         }
     }
 
+    async function handleOAuthSignIn(provider: 'google' | 'github') {
+        const auth_callback_url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/callback`
+        setOauthLoading((s) => ({ ...s, [provider]: true }))
+        const redirectTo = process.env.NEXT_PUBLIC_OAUTH_REDIRECT || `${window.location.origin}/projects`
+        const { data, error } = await supabase.auth.signInWithOAuth({
+            provider,
+            options: {
+                redirectTo,
+            },
+        })
+        console.log('OAuth sign-in data:', data)
+        if (error) {
+            setError(error.message || `Error during ${provider} sign-in`)
+            setOauthLoading((s) => ({ ...s, [provider]: false }))
+            return
+        }
+        // If Supabase returns an auth URL, navigate the browser to it; otherwise the SDK likely handled the redirect automatically.
+        if (data && (data as any).url) {
+            window.location.href = (data as any).url
+        } else {
+            setOauthLoading((s) => ({ ...s, [provider]: false }))
+        }
+    }
     const canSubmit = isSignUp
         ? watchedPassword.length > 0 && passwordValid(watchedPassword) && watchedConfirm === watchedPassword && watchedConfirm.length > 0
         : true
@@ -278,9 +310,43 @@ export default function Login({ onBack }: { onBack?: () => void }) {
                                                 )}
                                             />
                                         )}
+                                    <div className="text-center mt-2 text-white/70">or</div>
+                                        <div className="flex items-center justify-center gap-3 mt-2">
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => handleOAuthSignIn('google')}
+                                        disabled={oauthLoading.google}
+                                        className="w-1/2 flex items-center justify-center rounded-lg bg-white/10 text-white border border-white/20 hover:bg-white/20"
+                                    >
+                                        {oauthLoading.google ? (
+                                            <span className="inline-block animate-spin rounded-full h-4 w-4 mr-2 border-2 border-white/70 border-t-transparent" />
+                                        ) : (
+                                            <img src="/google_logo.svg" alt="Google logo" className="mr-2 h-4 w-4" />
+                                        )}
+                                        Continue with Google
+                                    </Button>
+
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => handleOAuthSignIn('github')}
+                                        disabled={oauthLoading.github}
+                                        className="w-1/2 flex items-center justify-center rounded-lg bg-white/10 text-white border border-white/20 hover:bg-white/20"
+                                    >
+                                        {oauthLoading.github ? (
+                                            <span className="inline-block animate-spin rounded-full h-4 w-4 mr-2 border-2 border-white/70 border-t-transparent" />
+                                        ) : (
+                                            <img src="/github_logo.svg" alt="GitHub logo" className="mr-2 h-4 w-4" />
+                                        )}
+                                        Continue with GitHub
+                                    </Button>
+                                </div>
+
                                     </div>
 
-                                        {error && (
+                                        {message && (
+                                        <div className="rounded-md bg-slate-700/60 p-3 text-sm text-white">{message}</div>
+                                    )}
+                                    {error && (
                                         <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
                                             {error}
                                         </div>
