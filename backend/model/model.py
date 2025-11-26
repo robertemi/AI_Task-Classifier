@@ -61,9 +61,9 @@ SYSTEM_PROMPT = (
 )
 
 model_providers = {
-    1 : 'deepseek/deepseek-chat-v3.1:free',
-    2 : 'openai/gpt-oss-20b:free',
-    3 : 'meta-llama/llama-3.3-8b-instruct:free'
+    1 : 'x-ai/grok-4.1-fast:free',
+    2 : 'nvidia/nemotron-nano-12b-v2-vl:free',
+    3 : 'deepseek/deepseek-r1:free'
 }
 
 async def get_project_context(project_id: str, user_id: str):
