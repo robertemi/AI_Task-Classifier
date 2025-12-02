@@ -47,6 +47,7 @@ class IndexEnrichedTaskRequest(BaseModel):
     ai_description: str
     epic: Optional[str] = None
     status: Optional[str] = None
+    story_points: int
 
 
 class EditEnrichedTaskRequest(BaseModel):
@@ -55,6 +56,7 @@ class EditEnrichedTaskRequest(BaseModel):
     task_title: str | None = None
     user_description: str | None = None
     ai_description: str | None = None
+    userId: str
 
     @model_validator(mode='after')
     def check_fields(cls, values):
@@ -108,3 +110,8 @@ class IndexResponse(BaseModel):
     ok: bool
     data: Optional[Dict[str, Any]] = None
     detail: Optional[str] = None
+
+class ProjectHandbookRequest(BaseModel):
+    userId: str
+    projectId: str
+    selected_model: int = 2  # TODO make this dynamic

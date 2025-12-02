@@ -7,7 +7,7 @@ import { useRouter } from "next/router";
 export default function MyApp({ Component, pageProps }: AppProps) {
     const router = useRouter();
 
-    const hideNavbarRoutes = ["/"];
+    const hideNavbarRoutes = ["/", "/forgot-password", "/login"];
     const shouldHideNavbar = hideNavbarRoutes.includes(router.pathname);
 
     return (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { useAuth } from '@/context/AuthProvider';
 
 interface Task {
     id: string;
@@ -20,6 +21,7 @@ interface EditTaskModalProps {
 }
 
 export function EditTaskModal({ isOpen, onClose, onTaskEdited, task }: EditTaskModalProps) {
+  const { user } = useAuth();
   const [newTitle, setNewTitle] = useState(task?.title || '');
   const [newUserDescription, setNewUserDescription] = useState(task?.description || '');
   const [newAiDescription, setNewAiDescription] = useState(task?.ai_description || '');
@@ -53,6 +55,7 @@ export function EditTaskModal({ isOpen, onClose, onTaskEdited, task }: EditTaskM
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+
     if (!task) {
       setError("No task selected for editing.");
       return;
@@ -74,9 +77,10 @@ export function EditTaskModal({ isOpen, onClose, onTaskEdited, task }: EditTaskM
     setLoading(true);
     setError(null);
 
-    const updatePayload: { taskId: string; projectId: string; task_title?: string; user_description?: string; ai_description?: string } = {
+    const updatePayload: { taskId: string; projectId: string; task_title?: string; user_description?: string; ai_description?: string; userId: string } = {
       taskId: task.id,
       projectId: task.project_id,
+      userId: user!.id,
     };
 
     if (isTitleChanged) {
@@ -90,7 +94,7 @@ export function EditTaskModal({ isOpen, onClose, onTaskEdited, task }: EditTaskM
     }
 
     try {
-      const response = await fetch('https://ai-task-classifier.onrender.com/index/edit/task', {
+      const response = await fetch('http://localhost:8000/index/edit/task', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

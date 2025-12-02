@@ -13,9 +13,9 @@ interface CreateTaskModalProps {
 }
 
 const model_providers = {
-    '1' : 'Deepseek (3.1)',
-    '2' : 'OpenAI (gpt-oss-20b)',
-    '3' : 'Meta-Llama (llama-3.3-8b-instruct)'
+    '1' : 'Grok (4.1)',
+    '2' : 'NVIDIA: Nemotron Nano',
+    '3' : 'Deepseek R1'
 };
 
 // Mapping from frontend status to backend status
@@ -65,7 +65,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId, sta
     const backendStatus = statusMap[status] || 'todo';
 
     try {
-      const response = await fetch('https://ai-task-classifier.onrender.com/index/task/enrich_and_index', {
+      const response = await fetch('http://localhost:8000/index/task/enrich_and_index', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

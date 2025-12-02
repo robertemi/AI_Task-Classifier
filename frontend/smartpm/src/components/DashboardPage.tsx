@@ -6,6 +6,8 @@ import { CreateTaskModal } from "./CreateTaskModal";
 import { TaskDetailsModal } from "./TaskDetailsModal";
 import { TaskContextMenu } from "./TaskContextMenu";
 import { EditTaskModal } from "./EditTaskModal";
+import { useAuth } from "@/context/AuthProvider";
+import { Book } from "lucide-react";
 
 interface Task {
     id: string;
@@ -29,6 +31,7 @@ interface ProjectDetails {
 }
 
 export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
+    const { session } = useAuth();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loadingTasks, setLoadingTasks] = useState(true);
     const [errorTasks, setErrorTasks] = useState<string | null>(null);
@@ -42,6 +45,7 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [selectedStatusForNewTask, setSelectedStatusForNewTask] = useState<Task['status']>('todo');
     const [createModalKey, setCreateModalKey] = useState(0);
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const [taskContextMenu, setTaskContextMenu] = useState<{
         isOpen: boolean;
@@ -91,6 +95,43 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
         fetchTasks();
     }, [projectId]);
 
+    const handleDownloadHandbook = async () => {
+        if (!session || !projectDetails) return;
+        setIsDownloading(true);
+        try {
+            const response = await fetch('http://localhost:8000/index/project/handbook/pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userId: session.user.id,
+                    projectId: projectDetails.id,
+                    selected_model: 1,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to download project handbook');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${projectDetails.name}_handbook.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
     const tasksByStatus = {
         todo: tasks.filter((t) => t.status === "todo" || t.status === "none"),
         inProgress: tasks.filter((t) => t.status === "inProgress"),
@@ -126,7 +167,7 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
             console.log("Sending update payload to backend:", updatePayload);
 
             try {
-                const response = await fetch('https://ai-task-classifier.onrender.com/index/edit/task', {
+                const response = await fetch('http://localhost:8000/index/edit/task', {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -194,7 +235,7 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
         if (!taskContextMenu.task) return;
 
         try {
-            const response = await fetch('https://ai-task-classifier.onrender.com/index/delete/task', {
+            const response = await fetch('http://localhost:8000/index/delete/task', {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json',
@@ -262,7 +303,17 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
                 <div className="absolute inset-0 z-0"><Aurora colorStops={["#1e3a8a", "#3730a3", "#4c1d95"]} /></div>
                 <main className="relative z-10 p-12 max-w-[1600px] mx-auto">
                     <button onClick={onBack} className="text-purple-300 hover:text-white transition-colors text-[15px] font-medium mb-3 inline-block">← Back to Projects</button>
-                    <h1 className="text-white text-[42px] font-bold tracking-tight mb-8">Project {projectDetails?.name || "Unknown Project"} Dashboard</h1>
+                    <div className="flex justify-between items-center mb-8">
+                        <h1 className="text-white text-[42px] font-bold tracking-tight">Project {projectDetails?.name || "Unknown Project"} Dashboard</h1>
+                        <button 
+                            onClick={handleDownloadHandbook}
+                            disabled={isDownloading}
+                            className="flex items-center gap-2 text-white hover:text-gray-300 transition-colors text-[15px] font-medium disabled:opacity-50"
+                        >
+                            <Book size={20} />
+                            {isDownloading ? 'Downloading...' : 'Download Project Handbook'}
+                        </button>
+                    </div>
                     <div className="grid grid-cols-4 gap-5">
                         {columnConfig.map((config) => (
                             <StatusColumn
