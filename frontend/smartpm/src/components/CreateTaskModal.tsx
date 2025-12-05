@@ -65,7 +65,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId, sta
     const backendStatus = statusMap[status] || 'todo';
 
     try {
-      const response = await fetch('http://localhost:8000/index/task/enrich_and_index', {
+      const response = await fetch('https://ai-task-classifier.onrender.com/index/task/enrich_and_index', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

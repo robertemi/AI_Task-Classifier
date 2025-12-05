@@ -94,7 +94,7 @@ export function EditTaskModal({ isOpen, onClose, onTaskEdited, task }: EditTaskM
     }
 
     try {
-      const response = await fetch('http://localhost:8000/index/edit/task', {
+      const response = await fetch('https://ai-task-classifier.onrender.com/index/edit/task', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
