@@ -11,13 +11,13 @@ async def test_update_task_success_with_regeneration():
     service = TaskService()
 
     # -------------------------------
-    # Mock Supabase client
+    # mock supabase
     # -------------------------------
     mock_supabase = MagicMock()
     mock_table = MagicMock()
     mock_update_query = MagicMock()
 
-    # Supabase response with new row
+    
     mock_update_query.execute = AsyncMock(return_value=MagicMock(
         data=[{
             "id": "T123",
@@ -33,35 +33,30 @@ async def test_update_task_success_with_regeneration():
 
     mock_update_query.match.return_value = mock_update_query
 
-    # update() must return the query object
     mock_table.update.return_value = mock_update_query
 
-    # table() must return the table object
     mock_supabase.table.return_value = mock_table
 
     # -------------------------------
-    # Mock Redis
+    # mock redis
     # -------------------------------
     mock_redis = MagicMock()
     mock_redis.get = AsyncMock(return_value='[{"taskId": "T123", "title": "Old Title"}]')
     mock_redis.set = AsyncMock()
 
-    # -------------------------------
-    # Mock clients returned by ensure_clients()
-    # -------------------------------
     with patch("backend.service.task_service.get_supabase_client", new=AsyncMock(return_value=mock_supabase)) as mock_supabase_factory:
         with patch("backend.service.task_service.get_redis_client", new=AsyncMock(return_value=mock_redis)) as mock_redis_factory:
             mock_supabase_factory.return_value = mock_supabase
             mock_redis_factory.return_value = mock_redis
 
             # -------------------------------
-            # Mock AI regeneration
+            # mock AI regeneration
             # -------------------------------
             with patch("backend.model.model.enrich_edited_task", new_callable=AsyncMock) as mock_enrich:
                 mock_enrich.return_value = ("New AI Desc", 5)
 
                 # -------------------------------
-                # Mock RAG index_task
+                # mock rag index_task
                 # -------------------------------
                 with patch.object(service._rag, "index_task") as mock_rag_index:
 
@@ -78,14 +73,14 @@ async def test_update_task_success_with_regeneration():
 
                     assert result is True
 
-                    # Check AI regeneration triggered
+                    # check if AI regenerates
                     mock_enrich.assert_awaited_once()
 
-                    # Check Supabase called correctly
+                    # check if supabase called correctly
                     mock_table.update.assert_called_once()
 
-                    # Check RAG indexing triggered
+                    # check if RAG indexing triggered
                     mock_rag_index.assert_called_once()
 
-                    # Cache updated
+                    # update cache
                     mock_redis.set.assert_awaited_once()

@@ -11,13 +11,12 @@ async def test_delete_task_success():
     service = TaskService()
 
     # -------------------------------
-    # Mock supabase
+    # mock supabase
     # -------------------------------
     mock_supabase = MagicMock()
     mock_table = MagicMock()
     mock_delete_query = MagicMock()
 
-    # DB returns one deleted row → success
     mock_delete_query.execute = AsyncMock(return_value=MagicMock(
         data=[{"id": "T123"}]
     ))
@@ -27,7 +26,7 @@ async def test_delete_task_success():
     mock_supabase.table.return_value = mock_table
 
     # -------------------------------
-    # Mock Redis cache
+    # mock redis
     # -------------------------------
     cache_before = '[{"taskId": "T123"}, {"taskId": "T999"}]'
 
@@ -36,9 +35,7 @@ async def test_delete_task_success():
     mock_redis.set = AsyncMock()
     mock_redis.delete = AsyncMock()
 
-    # -------------------------------
-    # Replace ensure_clients clients
-    # -------------------------------
+
     with patch("backend.service.task_service.get_supabase_client", new=AsyncMock(return_value=mock_supabase)) as mock_supabase_factory:
         with patch("backend.service.task_service.get_redis_client", new=AsyncMock(return_value=mock_redis)) as mock_redis_factory:
 
@@ -46,7 +43,7 @@ async def test_delete_task_success():
             mock_redis_factory.return_value = mock_redis
 
             # -------------------------------
-            # Mock RAG delete
+            # mock delete from rag
             # -------------------------------
             with patch.object(service._rag, "delete_task") as mock_rag_delete:
 
@@ -59,11 +56,11 @@ async def test_delete_task_success():
 
                 assert result is True
 
-                # Supabase called
+                # supabase called
                 mock_table.delete.assert_called_once()
 
-                # RAG delete called
+                # rag delete called
                 mock_rag_delete.assert_called_once_with(projectId="P1", taskId="T123")
 
-                # Cache updated correctly
+                # cache updated correctly
                 mock_redis.set.assert_awaited_once()

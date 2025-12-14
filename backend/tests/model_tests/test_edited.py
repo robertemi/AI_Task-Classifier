@@ -14,7 +14,7 @@ async def test_enrich_edited_task_success():
         mock_context.return_value = "FAKE_EDIT_CONTEXT"
 
         # -----------------------------------------------------
-        # Mock HTTP client + response
+        # mock HTTP client + response
         # -----------------------------------------------------
         fake_http_client = AsyncMock()
 
@@ -34,9 +34,7 @@ async def test_enrich_edited_task_success():
 
         with patch("backend.model.model.get_http_client", return_value=fake_http_client):
 
-            # -----------------------------------------------------
-            # Run the function
-            # -----------------------------------------------------
+            
             ai_description, ai_story_points = await enrich_edited_task(
                 taskId="t1",
                 projectId="p1",
@@ -45,12 +43,7 @@ async def test_enrich_edited_task_success():
                 new_task_user_description="New desc"
             )
 
-            # -----------------------------------------------------
-            # Assertions
-            # -----------------------------------------------------
 
-            # Cleaned description (story points removed)
             assert ai_description == "Updated description."
 
-            # Extracted story points
             assert ai_story_points == 5

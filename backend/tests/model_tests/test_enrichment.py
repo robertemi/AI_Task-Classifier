@@ -55,20 +55,14 @@ async def test_enrich_task_details_success():
 
                 result = await enrich_task_details(req)
 
-                # --------------------------
-                # asserts
-                # --------------------------
-
-                # Returned result structure
+                
                 assert result["story_points"] == 8
                 assert "Implement login page UI" in result["ai_description"]
                 assert result["used_context_text"] == "FAKE_CONTEXT"
 
-                # Ensure create_task was called
                 mock_create.assert_awaited_once()
                 created_task_arg = mock_create.call_args[0][0]
 
-                # Check enriched task fields
                 assert created_task_arg.story_points == 8
                 assert created_task_arg.ai_description == "Implement login page UI."
 
