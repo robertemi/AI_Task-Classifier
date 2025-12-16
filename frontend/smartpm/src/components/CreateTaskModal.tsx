@@ -14,7 +14,7 @@ interface CreateTaskModalProps {
 }
 
 const model_providers = {
-    '1' : 'Grok (4.1)',
+    '1' : 'Nvidia nemotron-3-nano-30b-a3b',
     '2' : 'NVIDIA: Nemotron Nano',
     '3' : 'Deepseek R1'
 };
