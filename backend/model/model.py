@@ -61,7 +61,7 @@ SYSTEM_PROMPT = (
 )
 
 model_providers = {
-    1 : 'x-ai/grok-4.1-fast:free',
+    1 : 'nvidia/nemotron-3-nano-30b-a3b:free',
     2 : 'nvidia/nemotron-nano-12b-v2-vl:free',
     3 : 'deepseek/deepseek-r1:free'
 }
