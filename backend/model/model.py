@@ -388,7 +388,6 @@ async def generate_project_handbook_text(req: ProjectHandbookRequest) -> str:
     # load project + tasks from Supabase
     project_row = await load_project_from_supabase(req.projectId, req.userId)
     task_rows = await load_tasks_from_supabase(req.projectId)
-
     # build structured context
     project_context = {
         "id": project_row.get("id"),
@@ -413,6 +412,7 @@ async def generate_project_handbook_text(req: ProjectHandbookRequest) -> str:
             "created_at": row.get("created_at"),
             "updated_at": row.get("updated_at"),
         })
+
 
     if not project_context["description"] and not tasks_context:
         raise RuntimeError("No meaningful project or task data found for this project.")
@@ -448,6 +448,7 @@ async def generate_project_handbook_text(req: ProjectHandbookRequest) -> str:
     )
 
     data = response.json()
+    print(f'data: {data}')
 
     if response.status_code != 200:
         print(f"OpenRouter handbook error: {data}")
