@@ -14,7 +14,7 @@ interface CreateTaskModalProps {
 }
 
 const model_providers = {
-    '1' : 'Olmo',
+    '1' : 'Grok (4.1)',
     '2' : 'NVIDIA: Nemotron Nano',
     '3' : 'Deepseek R1'
 };
