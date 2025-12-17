@@ -268,7 +268,7 @@ async def enrich_edited_task(
             "Content-Type": "application/json",
         },
         data=json.dumps({
-            "model": model_providers[2], # hardcoded model provider used of the automatic regeneration
+            "model": model_providers[1], # hardcoded model provider used of the automatic regeneration
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": context}
