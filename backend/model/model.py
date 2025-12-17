@@ -16,8 +16,6 @@ from backend.core.config import get_redis_client, get_supabase_client
 
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
 
 
 task_service = TaskService()
@@ -472,51 +470,40 @@ async def generate_project_handbook_text(req: ProjectHandbookRequest) -> str:
 
 def handbook_text_to_pdf_bytes(text: str, title: str | None = None) -> bytes:
     """
-    Render a text/markdown handbook into a PDF using ReportLab Platypus.
-    Handles text wrapping, pagination, and basic markdown formatting.
+    Render a text/markdown handbook into a basic PDF.
+    This is intentionally simple; you can later enhance it (fonts, headings, etc.).
     """
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
-    styles = getSampleStyleSheet()
-    story = []
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
 
+    x_margin = 50
+    y_margin = 50
+
+    text_obj = c.beginText()
+    text_obj.setTextOrigin(x_margin, height - y_margin)
+    text_obj.setFont("Helvetica", 11)
+
+    # optional title at the top*
     if title:
-        story.append(Paragraph(title, styles['Title']))
-        story.append(Spacer(1, 12))
+        text_obj.setFont("Helvetica-Bold", 14)
+        text_obj.textLine(title)
+        text_obj.textLine("")
+        text_obj.setFont("Helvetica", 11)
 
-    # Split text into paragraphs (assuming double newline separates paragraphs)
-    paragraphs = text.split('\n\n')
+    for line in text.splitlines():
+        text_obj.textLine(line)
+        # start a new page if we reached the bottom
+        if text_obj.getY() <= y_margin:
+            c.drawText(text_obj)
+            c.showPage()
+            text_obj = c.beginText()
+            text_obj.setTextOrigin(x_margin, height - y_margin)
+            text_obj.setFont("Helvetica", 11)
 
-    for p_text in paragraphs:
-        p_text = p_text.strip()
-        if not p_text:
-            continue
-
-        # Determine style based on markdown headers
-        style = styles['Normal']
-        if p_text.startswith('# '):
-            style = styles['Heading1']
-            p_text = p_text[2:].strip()
-        elif p_text.startswith('## '):
-            style = styles['Heading2']
-            p_text = p_text[3:].strip()
-        elif p_text.startswith('### '):
-            style = styles['Heading3']
-            p_text = p_text[4:].strip()
-
-        # Basic escaping to prevent XML parsing errors in ReportLab
-        p_text = p_text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-
-        # Convert markdown bold (**text**) to ReportLab XML tags (<b>text</b>)
-        p_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', p_text)
-        
-        # Convert newlines to <br/> for line breaks within a paragraph
-        p_text = p_text.replace('\n', '<br/>')
-
-        story.append(Paragraph(p_text, style))
-        story.append(Spacer(1, 6))
-
-    doc.build(story)
+    c.drawText(text_obj)
+    c.showPage()
+    c.save()
 
     pdf_bytes = buffer.getvalue()
     buffer.close()

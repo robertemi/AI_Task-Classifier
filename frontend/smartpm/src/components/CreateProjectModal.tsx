@@ -69,7 +69,7 @@ export function CreateProjectModal({ isOpen, onClose, onProjectCreated }: Create
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/index/project', {
+      const response = await fetch('https://ai-task-classifier.onrender.com/index/project', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
