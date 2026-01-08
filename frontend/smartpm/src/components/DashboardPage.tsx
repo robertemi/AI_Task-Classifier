@@ -159,32 +159,15 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
                 )
             );
             
-            const updatePayload = {
-                taskId: draggedTask.id,
-                projectId: draggedTask.project_id,
-                status: newStatus,
-            };
-            console.log("Sending update payload to backend:", updatePayload);
-
             try {
-                const response = await fetch('https://ai-task-classifier.onrender.com/index/edit/task', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(updatePayload),
-                });
+                const { error } = await supabase
+                    .from("tasks")
+                    .update({ status: newStatus })
+                    .eq("id", draggedTask.id);
 
-                console.log("Backend response status:", response.status);
-                const responseData = await response.json();
-                console.log("Backend response data:", responseData);
-
-                if (!response.ok) {
-                    throw new Error(responseData.detail || 'Failed to update task status');
-                }
+                if (error) throw error;
                 
-                console.log("Task status updated successfully in backend.");
-                fetchTasks();
+                console.log("Task status updated successfully via Supabase.");
             } catch (err: any) {
                 console.error("Error updating task status:", err);
                 setErrorTasks(err.message);
