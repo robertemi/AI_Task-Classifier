@@ -18,7 +18,8 @@ async def test_enrich_task_details_success():
         projectId="p123",
         task_title="Create login page",
         user_description="User wants a login page",
-        selected_model="1"
+        selected_model="1",
+        status='ToDo'
     )
 
     # --------------------------
