@@ -16,7 +16,7 @@ interface Task {
     description: string;
     ai_description?: string;
     story_points?: number;
-    status: "todo" | "inProgress" | "inReview" | "done" | "none";
+    status: "ToDo" | "In_Progress" | "In_Review" | "Done";
 }
 
 interface DashboardPageProps {
@@ -43,7 +43,7 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
     const [isTaskDetailsModalOpen, setIsTaskDetailsModalOpen] = useState(false);
     const [isEditTaskModalOpen, setIsEditTaskModalOpen] = useState(false); // State for EditTaskModal
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-    const [selectedStatusForNewTask, setSelectedStatusForNewTask] = useState<Task['status']>('todo');
+    const [selectedStatusForNewTask, setSelectedStatusForNewTask] = useState<Task['status']>('ToDo');
     const [createModalKey, setCreateModalKey] = useState(0);
     const [isDownloading, setIsDownloading] = useState(false);
 
@@ -133,10 +133,10 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
     };
 
     const tasksByStatus = {
-        todo: tasks.filter((t) => t.status === "todo" || t.status === "none"),
-        inProgress: tasks.filter((t) => t.status === "inProgress"),
-        inReview: tasks.filter((t) => t.status === "inReview"),
-        done: tasks.filter((t) => t.status === "done"),
+        todo: tasks.filter((t) => t.status === "ToDo"),
+        inProgress: tasks.filter((t) => t.status === "In_Progress"),
+        inReview: tasks.filter((t) => t.status === "In_Review"),
+        done: tasks.filter((t) => t.status === "Done"),
     };
 
     const handleDragStart = (task: Task) => {
@@ -256,10 +256,10 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
 
 
     const columnConfig = [
-        { title: "To Do", status: "todo" as const, tasks: tasksByStatus.todo, accentColor: "from-slate-500/20 to-transparent", borderColor: "border-slate-400/40", onAddTaskClick: () => handleAddTaskClick("todo") },
-        { title: "In Progress", status: "inProgress" as const, tasks: tasksByStatus.inProgress, accentColor: "from-blue-500/20 to-transparent", borderColor: "border-blue-400/40", onAddTaskClick: () => handleAddTaskClick("inProgress") },
-        { title: "In Review", status: "inReview" as const, tasks: tasksByStatus.inReview, accentColor: "from-amber-500/20 to-transparent", borderColor: "border-amber-400/40", onAddTaskClick: () => handleAddTaskClick("inReview") },
-        { title: "Done", status: "done" as const, tasks: tasksByStatus.done, accentColor: "from-emerald-500/20 to-transparent", borderColor: "border-emerald-400/40", onAddTaskClick: () => handleAddTaskClick("done") },
+        { title: "To Do", status: "ToDo" as const, tasks: tasksByStatus.todo, accentColor: "from-slate-500/20 to-transparent", borderColor: "border-slate-400/40", onAddTaskClick: () => handleAddTaskClick("ToDo") },
+        { title: "In Progress", status: "In_Progress" as const, tasks: tasksByStatus.inProgress, accentColor: "from-blue-500/20 to-transparent", borderColor: "border-blue-400/40", onAddTaskClick: () => handleAddTaskClick("In_Progress") },
+        { title: "In Review", status: "In_Review" as const, tasks: tasksByStatus.inReview, accentColor: "from-amber-500/20 to-transparent", borderColor: "border-amber-400/40", onAddTaskClick: () => handleAddTaskClick("In_Review") },
+        { title: "Done", status: "Done" as const, tasks: tasksByStatus.done, accentColor: "from-emerald-500/20 to-transparent", borderColor: "border-emerald-400/40", onAddTaskClick: () => handleAddTaskClick("Done") },
     ];
 
     if (loadingProject || loadingTasks) {

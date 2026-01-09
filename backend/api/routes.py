@@ -100,7 +100,7 @@ async def delete_project(req: DeleteProjectRequest):
 @router.post("/task/enrich_and_index", response_model=IndexResponse)
 async def enrich_and_index(req: EnrichTaskRequest) -> IndexResponse:
     if _rag is None:
-        raise HTTPException(status_code=500, detail=f"RAGService indisponibil: {_rag_init_error}")
+        raise HTTPException(status_code=500, detail=f"Unavailable RAGService: {_rag_init_error}")
     try:
 
         enriched = await enrich_task_details(
@@ -110,7 +110,8 @@ async def enrich_and_index(req: EnrichTaskRequest) -> IndexResponse:
                 taskId=req.taskId,
                 user_description=req.user_description,
                 selected_model=req.selected_model,
-                userId=req.userId
+                userId=req.userId,
+                status=req.status
             )
             )
         
