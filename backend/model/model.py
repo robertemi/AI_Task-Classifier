@@ -227,8 +227,7 @@ async def enrich_task_details(
         task_title=req.task_title,
         user_description=req.user_description,
         ai_description=ai_description,
-        status='todo',
-        #version=1,
+        status=req.status,
         story_points=ai_story_points
     )
 

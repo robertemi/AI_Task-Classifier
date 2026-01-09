@@ -43,7 +43,6 @@ class RAGService:
                 "projectId": req.projectId, "type": "project",
                 "taskId": None, "title": req.name,
                 "status": req.status, "epic": None,
-                # "version": req.version, 
                 "hash": sha256_of(ch),
             },
         } for i, ch in enumerate(chunks)]
@@ -70,7 +69,6 @@ class RAGService:
                 "user_description": req.user_description,
                 "ai_description": req.ai_description,
                 "story_points": req.story_points,
-                # "version": req.version, 
                 "hash": sha256_of(ch),
             },
         } for i, ch in enumerate(chunks)]
