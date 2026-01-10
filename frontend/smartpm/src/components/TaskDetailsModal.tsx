@@ -8,7 +8,7 @@ interface Task {
     description: string;
     ai_description?: string;
     story_points?: number;
-    status: "todo" | "inProgress" | "inReview" | "done" | "none";
+    status: "ToDo" | "In_Progress" | "In_Review" | "Done";
 }
 
 interface TaskDetailsModalProps {
