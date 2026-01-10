@@ -8,7 +8,7 @@ interface Task {
     description: string;
     ai_description?: string;
     story_points?: number;
-    status: "ToDo" | "In_Progress" | "In_Review" | "Done";
+    status: "todo" | "in_progress" | "in_review" | "done";
 }
 
 interface TaskDetailsModalProps {
@@ -48,7 +48,7 @@ export function TaskDetailsModal({ isOpen, onClose, onTaskDeleted, onEdit, task 
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:8000/index/delete/task', {
+      const response = await fetch('https://ai-task-classifier.onrender.com/index/delete/task', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

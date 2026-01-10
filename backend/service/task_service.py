@@ -38,7 +38,7 @@ class TaskService:
                         "description": req.user_description,
                         "ai_description": req.ai_description,
                         "story_points": req.story_points,
-                        "status": req.status,
+                        "status": req.status.lower(),
                     }
                 )
             )
@@ -57,7 +57,7 @@ class TaskService:
                         user_description=req.user_description,
                         ai_description=req.ai_description,
                         epic=req.epic,
-                        status=req.status,
+                        status=req.status.lower(),
                         story_points=req.story_points
                     )
                 )
@@ -223,36 +223,25 @@ class TaskService:
 
             print("delete_task supabase response:", response)
 
-            if response.data and len(response.data) > 0:
-                self._rag.delete_task(
+            self._rag.delete_task(
                     projectId=req.projectId,
                     taskId=req.taskId
                 )
 
-                cache_key = f'project:{req.projectId}:tasks'
-                deleted_task_id = req.taskId
+            cache_key = f'project:{req.projectId}:tasks'
+            deleted_task_id = req.taskId
 
-                cached = await self._redis_client.get(cache_key)
-                if cached:
-                    try:
-                        tasks = json.loads(cached)
-                    except json.JSONDecodeError:
-                        tasks = []
+            cached = await self._redis_client.get(cache_key)
+            if cached:
+                tasks = json.loads(cached)
+                updated_tasks = [t for t in tasks if t.get('taskId') != deleted_task_id]
 
-                    # filter out deleted task
-                    updated_tasks = [t for t in tasks if t.get('taskId') != deleted_task_id]
+                if updated_tasks:
+                    await self._redis_client.set(cache_key, json.dumps(updated_tasks), ex=1800)
+                else:
+                    await self._redis_client.delete(cache_key)
 
-                    if updated_tasks:
-                        # if other tasks exist other than the deleted one cache them
-                        await self._redis_client.set(cache_key, json.dumps(updated_tasks), ex=1800)
-                    else:
-                        # deleted task is the only task
-                        await self._redis_client.delete(cache_key)
-
-                return True
-
-            print(f"Delete task {req.taskId} failed: not found")
-            return False
+            return True
 
         except Exception as e:
             print(f"Unhandled exception in delete task: {e}")
