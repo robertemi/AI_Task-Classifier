@@ -185,10 +185,7 @@ async def enrich_task_details(
 
     ai_output = data["choices"][0]["message"]["content"].strip()
 
-    print("=== RAW AI OUTPUT START ===")
-    print(ai_output)
-    print("=== RAW AI OUTPUT END ===")
-
+    
     # also extract story points
     match = re.search(
         r"(?:\*\*)?\s*Story\s*Points?\s*[:\-–—]\**\s*(\d+)\s*(?:\*\*)?",

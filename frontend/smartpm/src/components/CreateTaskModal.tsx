@@ -10,7 +10,7 @@ interface CreateTaskModalProps {
   onClose: () => void;
   onTaskCreated: () => void;
   projectId: string;
-  status: "ToDo" | "In_Progress" | "In_Review" | "Done";
+  status: "todo" | "in_progress" | "in_review" | "done";
 }
 
 const model_providers = {
@@ -20,10 +20,10 @@ const model_providers = {
 };
 
 const statusMap = {
-    ToDo: 'ToDo',
-    In_Progress: 'In_Progress',
-    In_Review: 'In_Review',
-    Done: 'Done'
+    todo: 'todo',
+    in_progress: 'in_progress',
+    in_review: 'in_review',
+    done: 'done'
 };
 
 export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId, status }: CreateTaskModalProps) {

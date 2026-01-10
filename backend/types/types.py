@@ -2,10 +2,7 @@ from __future__ import annotations
 from typing import List, Optional, Literal, Dict, Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-TaskStatus = Literal["ToDo", "todo", 'Todo', 'toDo', 
-                     "In Progress", "in_progress", "In_Progress", "InProgress", 
-                     "In Review", "In_Review", "InReview", "in_review", 
-                     "Done", "done"]
+TaskStatus = Literal['todo', 'in_progress', 'in_review', 'done']
 
 class IndexProjectRequest(BaseModel):
     projectId: Optional[str] = None
@@ -48,7 +45,6 @@ class IndexEnrichedTaskRequest(BaseModel):
     task_title: str
     user_description: str
     ai_description: str
-    epic: Optional[str] = None
     status: TaskStatus
     story_points: int
 

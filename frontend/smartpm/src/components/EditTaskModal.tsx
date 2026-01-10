@@ -10,7 +10,7 @@ interface Task {
     description: string;
     ai_description?: string;
     story_points?: number;
-    status: "todo" | "inProgress" | "inReview" | "done" | "none";
+    status: "todo" | "in_progress" | "in_review" | "done";
 }
 
 interface EditTaskModalProps {

@@ -102,7 +102,6 @@ async def enrich_and_index(req: EnrichTaskRequest) -> IndexResponse:
     if _rag is None:
         raise HTTPException(status_code=500, detail=f"Unavailable RAGService: {_rag_init_error}")
     try:
-
         enriched = await enrich_task_details(
             IndexTaskRequest(
                 projectId=req.projectId,
@@ -150,10 +149,7 @@ async def update_task(req: EditEnrichedTaskRequest) -> IndexResponse:
 @router.delete("/delete/task", response_model=IndexResponse)
 async def delete_task(req: DeleteEnrichedTaskRequest) -> IndexResponse:
     try:
-        deleted = await _task_service.delete_task(req)
-
-        if not deleted:
-            raise HTTPException(status_code=404, detail=f"Task {req.taskId} not found")
+        await _task_service.delete_task(req)
 
         return IndexResponse(
             ok=True,
