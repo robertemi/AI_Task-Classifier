@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { X, Trash2, Pencil } from 'lucide-react'; // Import Pencil icon
+import { X, Trash2, Pencil } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Task {
     id: string;
@@ -100,8 +102,25 @@ export function TaskDetailsModal({ isOpen, onClose, onTaskDeleted, onEdit, task 
             {task.ai_description && (
                 <div>
                     <h3 className="text-indigo-300 font-semibold mb-2">AI Generated Description</h3>
-                    <div className="text-indigo-200 font-mono bg-white/5 p-3 rounded-lg max-h-60 overflow-y-auto">
-                        <p>{task.ai_description}</p>
+                    <div className="text-indigo-200 bg-white/5 p-4 rounded-lg max-h-60 overflow-y-auto">
+                        <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                                h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-2 text-indigo-100" {...props} />,
+                                h2: ({node, ...props}) => <h2 className="text-lg font-bold mb-2 text-indigo-100" {...props} />,
+                                h3: ({node, ...props}) => <h3 className="text-md font-bold mb-1 text-indigo-200" {...props} />,
+                                ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2 space-y-1" {...props} />,
+                                ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2 space-y-1" {...props} />,
+                                li: ({node, ...props}) => <li className="text-indigo-200/90" {...props} />,
+                                p: ({node, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
+                                strong: ({node, ...props}) => <strong className="font-bold text-indigo-100" {...props} />,
+                                em: ({node, ...props}) => <em className="italic text-indigo-300" {...props} />,
+                                code: ({node, ...props}) => <code className="bg-black/30 px-1 py-0.5 rounded text-sm font-mono text-indigo-200" {...props} />,
+                                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-indigo-500/50 pl-4 italic my-2 text-indigo-300/80" {...props} />,
+                            }}
+                        >
+                            {task.ai_description}
+                        </ReactMarkdown>
                     </div>
                 </div>
             )}
@@ -118,7 +137,7 @@ export function TaskDetailsModal({ isOpen, onClose, onTaskDeleted, onEdit, task 
                     </div>
                 </div>
 
-                <div className="flex gap-2"> {/* Use flex to align buttons */}
+                <div className="flex gap-2">
                     <button onClick={handleEditClick} className="text-gray-400 hover:text-white transition-colors">
                         <Pencil size={20} />
                     </button>
