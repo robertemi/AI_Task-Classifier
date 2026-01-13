@@ -116,21 +116,27 @@ export function EditProjectModal({ isOpen, onClose, onProjectEdited, project }: 
         <h2 className="text-white text-2xl font-bold mb-6">Edit Project</h2>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
-            <Input
-              type="text"
-              placeholder="Project Title"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 focus:ring-blue-400/50 focus:bg-white/20 transition-all text-sm rounded-xl px-4"
-              required
-            />
-            <textarea
-              placeholder="Project Description"
-              value={newDescription}
-              onChange={(e) => setNewDescription(e.target.value)}
-              className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 transition-all text-sm"
-              rows={4}
-            />
+            <div className="flex flex-col gap-2">
+                <label className="text-gray-400 text-sm font-medium ml-1">Project Title</label>
+                <Input
+                  type="text"
+                  placeholder="Project Title"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 focus:ring-blue-400/50 focus:bg-white/20 transition-all text-sm rounded-xl px-4"
+                  required
+                />
+            </div>
+            <div className="flex flex-col gap-2">
+                <label className="text-gray-400 text-sm font-medium ml-1">Project Description</label>
+                <textarea
+                  placeholder="Project Description"
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  className="w-full bg-white/10 text-white border-white/20 placeholder:text-gray-400 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400/50 focus:bg-white/20 transition-all text-sm"
+                  rows={4}
+                />
+            </div>
           </div>
           {error && <p className="text-red-400 text-sm mt-4">{error}</p>}
           <div className="flex justify-end gap-4 mt-6">

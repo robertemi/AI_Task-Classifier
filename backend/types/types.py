@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List, Optional, Literal, Dict, Any
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-TaskStatus = Literal["created", "todo", "in_progress", "in_review", "done", "archived"]
+TaskStatus = Literal['todo', 'in_progress', 'in_review', 'done']
 
 class IndexProjectRequest(BaseModel):
     projectId: Optional[str] = None
@@ -10,7 +10,7 @@ class IndexProjectRequest(BaseModel):
     name: str
     description: str
     status: Optional[str] = None
-    # version: int = 1
+    
 
 class EditProjectRequest(BaseModel):
     projectId: str
@@ -35,7 +35,7 @@ class IndexTaskRequest(BaseModel):
     task_title: str
     user_description: str
     epic: Optional[str] = None
-    status: TaskStatus = "created"
+    status: TaskStatus
     selected_model: int
     # version: int = 1
 
@@ -45,8 +45,7 @@ class IndexEnrichedTaskRequest(BaseModel):
     task_title: str
     user_description: str
     ai_description: str
-    epic: Optional[str] = None
-    status: Optional[str] = None
+    status: TaskStatus
     story_points: int
 
 
@@ -81,7 +80,7 @@ class ContextChunk(BaseModel):
     text: str
     type: Literal["project", "task"]
     taskId: Optional[str]
-    status: Optional[TaskStatus] = None
+    status: Optional[str] = None
     epic: Optional[str] = None
     title: Optional[str] = None
 
@@ -96,7 +95,7 @@ class EnrichTaskRequest(BaseModel):
     task_title: str
     user_description: str
     selected_model: int
-    # expected_version: int
+    status: TaskStatus
 
 class EnrichResult(BaseModel):
     ai_description: str

@@ -1,68 +1,27 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { ProjectCard } from "./ProjectCard";
 import Aurora from "./Aurora";
 import { Button } from "@/components/ui/button";
 import { CreateProjectModal } from "./CreateProjectModal";
 import { ProjectContextMenu } from "./ProjectContextMenu";
-import { EditProjectModal } from "./EditProjectModal"; // Import the new EditProjectModal
-import { useAuth } from "@/context/AuthProvider";
-import { supabase } from "@/lib/supabaseClient";
-
-interface Project {
-    id: string;
-    name: string;
-    description: string;
-    user_id: string;
-}
+import { EditProjectModal } from "./EditProjectModal";
+import { useProject, Project } from "@/context/ProjectContext";
 
 interface ProjectsPageProps {
     onProjectClick: (projectId: string) => void;
 }
 
 export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
-    const { user } = useAuth();
+    const { projects, loading, error, searchQuery, fetchProjects } = useProject();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false); // State for EditProjectModal
-    const [projects, setProjects] = useState<Project[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     const [contextMenu, setContextMenu] = useState<{
         isOpen: boolean;
         position: { x: number; y: number };
         project: Project | null;
     }>({ isOpen: false, position: { x: 0, y: 0 }, project: null });
-
-    const fetchProjects = async () => {
-        if (!user) {
-            setLoading(false);
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-        try {
-            const { data, error } = await supabase
-                .from("projects")
-                .select("id, name, description, user_id")
-                .eq("user_id", user.id);
-
-            if (error) {
-                throw error;
-            }
-            setProjects(data || []);
-        } catch (err: any) {
-            console.error("Error fetching projects:", err);
-            setError(err.message || "Failed to load projects");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchProjects();
-    }, [user]);
 
     const handleProjectCreated = () => {
         fetchProjects();
@@ -113,7 +72,8 @@ export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
 
         } catch (err: any) {
             console.error("Error deleting project:", err);
-            setError(err.message);
+            // We might want to handle this error locally or via a toast, 
+            // but for now we'll just log it as the global error state is managed by context
         } finally {
             closeContextMenu();
         }
@@ -130,7 +90,12 @@ export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
         return text.substring(0, maxLength) + "...";
     };
 
-    if (loading) {
+    const filteredProjects = projects.filter(project => 
+        project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (loading && projects.length === 0) {
         return (
             <div className="relative min-h-screen flex items-center justify-center">
                 <div className="absolute inset-0 z-0">
@@ -171,10 +136,12 @@ export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {projects.length === 0 ? (
-                            <p className="text-white text-lg col-span-full text-center">No projects found. Create one!</p>
+                        {filteredProjects.length === 0 ? (
+                            <p className="text-white text-lg col-span-full text-center">
+                                {searchQuery ? "No projects match your search." : "No projects found. Create one!"}
+                            </p>
                         ) : (
-                            projects.map((project) => (
+                            filteredProjects.map((project) => (
                                 <ProjectCard
                                     key={project.id}
                                     title={project.name}
@@ -199,14 +166,14 @@ export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
                 position={contextMenu.position}
                 onClose={closeContextMenu}
                 onDelete={handleDeleteProject}
-                onEdit={handleEditProject} // Pass the handleEditProject function
+                onEdit={handleEditProject} 
             />
 
             <EditProjectModal
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
                 onProjectEdited={handleProjectEdited}
-                project={contextMenu.project} // Pass the project from the context menu
+                project={contextMenu.project} 
             />
         </>
     );

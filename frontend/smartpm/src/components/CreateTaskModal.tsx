@@ -10,7 +10,7 @@ interface CreateTaskModalProps {
   onClose: () => void;
   onTaskCreated: () => void;
   projectId: string;
-  status: "todo" | "inProgress" | "inReview" | "done" | "none";
+  status: "todo" | "in_progress" | "in_review" | "done";
 }
 
 const model_providers = {
@@ -21,10 +21,9 @@ const model_providers = {
 
 const statusMap = {
     todo: 'todo',
-    inProgress: 'in_progress',
-    inReview: 'in_review',
-    done: 'done',
-    none: 'todo',
+    in_progress: 'in_progress',
+    in_review: 'in_review',
+    done: 'done'
 };
 
 export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId, status }: CreateTaskModalProps) {
@@ -87,7 +86,7 @@ export function CreateTaskModal({ isOpen, onClose, onTaskCreated, projectId, sta
     setLoading(true);
     setError(null);
 
-    const backendStatus = statusMap[status] || 'todo';
+    const backendStatus = statusMap[status];
 
     try {
       const response = await fetch('https://ai-task-classifier.onrender.com/index/task/enrich_and_index', {

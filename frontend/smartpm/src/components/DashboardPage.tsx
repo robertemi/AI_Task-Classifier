@@ -16,7 +16,7 @@ interface Task {
     description: string;
     ai_description?: string;
     story_points?: number;
-    status: "todo" | "inProgress" | "inReview" | "done" | "none";
+    status: "todo" | "in_progress" | "in_review" | "done";
 }
 
 interface DashboardPageProps {
@@ -133,9 +133,9 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
     };
 
     const tasksByStatus = {
-        todo: tasks.filter((t) => t.status === "todo" || t.status === "none"),
-        inProgress: tasks.filter((t) => t.status === "inProgress"),
-        inReview: tasks.filter((t) => t.status === "inReview"),
+        todo: tasks.filter((t) => t.status === "todo"),
+        in_progress: tasks.filter((t) => t.status === "in_progress"),
+        in_review: tasks.filter((t) => t.status === "in_review"),
         done: tasks.filter((t) => t.status === "done"),
     };
 
@@ -159,32 +159,15 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
                 )
             );
             
-            const updatePayload = {
-                taskId: draggedTask.id,
-                projectId: draggedTask.project_id,
-                status: newStatus,
-            };
-            console.log("Sending update payload to backend:", updatePayload);
-
             try {
-                const response = await fetch('https://ai-task-classifier.onrender.com/index/edit/task', {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(updatePayload),
-                });
+                const { error } = await supabase
+                    .from("tasks")
+                    .update({ status: newStatus })
+                    .eq("id", draggedTask.id);
 
-                console.log("Backend response status:", response.status);
-                const responseData = await response.json();
-                console.log("Backend response data:", responseData);
-
-                if (!response.ok) {
-                    throw new Error(responseData.detail || 'Failed to update task status');
-                }
+                if (error) throw error;
                 
-                console.log("Task status updated successfully in backend.");
-                fetchTasks();
+                console.log("Task status updated successfully via Supabase.");
             } catch (err: any) {
                 console.error("Error updating task status:", err);
                 setErrorTasks(err.message);
@@ -274,8 +257,8 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
 
     const columnConfig = [
         { title: "To Do", status: "todo" as const, tasks: tasksByStatus.todo, accentColor: "from-slate-500/20 to-transparent", borderColor: "border-slate-400/40", onAddTaskClick: () => handleAddTaskClick("todo") },
-        { title: "In Progress", status: "inProgress" as const, tasks: tasksByStatus.inProgress, accentColor: "from-blue-500/20 to-transparent", borderColor: "border-blue-400/40", onAddTaskClick: () => handleAddTaskClick("inProgress") },
-        { title: "In Review", status: "inReview" as const, tasks: tasksByStatus.inReview, accentColor: "from-amber-500/20 to-transparent", borderColor: "border-amber-400/40", onAddTaskClick: () => handleAddTaskClick("inReview") },
+        { title: "In Progress", status: "in_progress" as const, tasks: tasksByStatus.in_progress, accentColor: "from-blue-500/20 to-transparent", borderColor: "border-blue-400/40", onAddTaskClick: () => handleAddTaskClick("in_progress") },
+        { title: "In Review", status: "in_review" as const, tasks: tasksByStatus.in_review, accentColor: "from-amber-500/20 to-transparent", borderColor: "border-amber-400/40", onAddTaskClick: () => handleAddTaskClick("in_review") },
         { title: "Done", status: "done" as const, tasks: tasksByStatus.done, accentColor: "from-emerald-500/20 to-transparent", borderColor: "border-emerald-400/40", onAddTaskClick: () => handleAddTaskClick("done") },
     ];
 

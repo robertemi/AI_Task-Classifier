@@ -14,7 +14,7 @@ from backend.types.types import (
     DeleteEnrichedTaskRequest, ProjectHandbookRequest
 )
 from backend.rag.retriever import RAGService
-from backend.model.model import enrich_task_details, generate_project_handbook_text, handbook_text_to_pdf_bytes
+from backend.model.model import enrich_task_details, generate_project_handbook_text, render_handbook_pdf
 from backend.service.project_service import ProjectService
 from backend.service.task_service import TaskService
 
@@ -100,9 +100,8 @@ async def delete_project(req: DeleteProjectRequest):
 @router.post("/task/enrich_and_index", response_model=IndexResponse)
 async def enrich_and_index(req: EnrichTaskRequest) -> IndexResponse:
     if _rag is None:
-        raise HTTPException(status_code=500, detail=f"RAGService indisponibil: {_rag_init_error}")
+        raise HTTPException(status_code=500, detail=f"Unavailable RAGService: {_rag_init_error}")
     try:
-
         enriched = await enrich_task_details(
             IndexTaskRequest(
                 projectId=req.projectId,
@@ -110,7 +109,8 @@ async def enrich_and_index(req: EnrichTaskRequest) -> IndexResponse:
                 taskId=req.taskId,
                 user_description=req.user_description,
                 selected_model=req.selected_model,
-                userId=req.userId
+                userId=req.userId,
+                status=req.status
             )
             )
         
@@ -149,10 +149,7 @@ async def update_task(req: EditEnrichedTaskRequest) -> IndexResponse:
 @router.delete("/delete/task", response_model=IndexResponse)
 async def delete_task(req: DeleteEnrichedTaskRequest) -> IndexResponse:
     try:
-        deleted = await _task_service.delete_task(req)
-
-        if not deleted:
-            raise HTTPException(status_code=404, detail=f"Task {req.taskId} not found")
+        await _task_service.delete_task(req)
 
         return IndexResponse(
             ok=True,
@@ -173,25 +170,17 @@ async def generate_project_handbook_pdf(req: ProjectHandbookRequest):
     """
     try:
         # generate handbook text from Supabase data
-        handbook_text = await generate_project_handbook_text(req)
+        markdown_text = await generate_project_handbook_text(req)
+        pdf_bytes = render_handbook_pdf(markdown_text)
 
-        if not handbook_text:
-            raise HTTPException(status_code=404, detail="No handbook content could be generated.")
 
-        # convert text to PDF bytes
-        pdf_bytes = handbook_text_to_pdf_bytes(
-            handbook_text,
-            title=f"Project {req.projectId} - Handbook"
-        )
-
-        # stream the PDF back to the client
-        filename = f"project_{req.projectId}_handbook.pdf"
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+            headers={
+            "Content-Disposition": "inline; filename=project-handbook.pdf"
+            }
         )
     except Exception as e:
         print(f'Unexpected error in project handbook route: {e}')
-        # raise HTTPException(status_code=500, detail=f"Handbook generation failed: {e}") from e  
         raise HTTPException(status_code=500, detail=f"Handbook generation failed unexpectedly: {e}")

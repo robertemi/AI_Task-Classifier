@@ -1,0 +1,71 @@
+@page {
+  size: A4;
+  margin: 2.5cm;
+}
+
+body {
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.6;
+  color: #222;
+}
+
+.header {
+  margin-bottom: 1.5cm;
+  border-bottom: 2px solid #eee;
+}
+
+h1 {
+  font-size: 26pt;
+  margin: 0;
+}
+
+h2 {
+  font-size: 16pt;
+  margin-top: 1.2cm;
+  page-break-after: avoid;
+}
+
+h3 {
+  font-size: 13pt;
+  margin-top: 0.8cm;
+}
+
+p {
+  margin: 0.4cm 0;
+}
+
+ul {
+  margin-left: 1cm;
+}
+
+li {
+  margin: 0.2cm 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.6cm 0;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 6px;
+}
+
+th {
+  background: #f5f5f5;
+  font-weight: 600;
+}
+
+tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.footer {
+  position: fixed;
+  bottom: 1cm;
+  font-size: 9pt;
+  color: #666;
+}
