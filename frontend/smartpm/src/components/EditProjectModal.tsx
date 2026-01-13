@@ -86,7 +86,7 @@ export function EditProjectModal({ isOpen, onClose, onProjectEdited, project }: 
     }
 
     try {
-      const response = await fetch('https://ai-task-classifier.onrender.com/index/edit/project', {
+      const response = await fetch('http://localhost:8000/index/edit/project', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

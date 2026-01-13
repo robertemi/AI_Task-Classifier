@@ -50,7 +50,7 @@ export function ProjectsPage({ onProjectClick }: ProjectsPageProps) {
         if (!contextMenu.project) return;
 
         try {
-            const response = await fetch('https://ai-task-classifier.onrender.com/index/delete/project', {
+            const response = await fetch('http://localhost:8000/index/delete/project', {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json',

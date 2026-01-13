@@ -99,7 +99,7 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
         if (!session || !projectDetails) return;
         setIsDownloading(true);
         try {
-            const response = await fetch('https://ai-task-classifier.onrender.com/index/project/handbook/pdf', {
+            const response = await fetch('http://localhost:8000/index/project/handbook/pdf', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -218,7 +218,7 @@ export function DashboardPage({ projectId, onBack }: DashboardPageProps) {
         if (!taskContextMenu.task) return;
 
         try {
-            const response = await fetch('https://ai-task-classifier.onrender.com/index/delete/task', {
+            const response = await fetch('http://localhost:8000/index/delete/task', {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json',
