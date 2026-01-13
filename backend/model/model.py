@@ -4,6 +4,11 @@ import json
 import re
 import httpx
 import io
+import markdown
+from weasyprint import HTML, CSS
+from jinja2 import Environment, FileSystemLoader
+from datetime import datetime
+from pathlib import Path
 
 from backend.types.types import (
     IndexEnrichedTaskRequest,
@@ -14,8 +19,15 @@ from backend.service.task_service import TaskService
 from backend.rag.retriever import RAGService
 from backend.core.config import get_redis_client, get_supabase_client
 
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
+# path configs for html template and static css
+BASE_DIR = Path(__file__).resolve().parent.parent
+print(f'Base dir: {BASE_DIR}')
+
+TEMPLATES_DIR = BASE_DIR / "templates"
+print(f'Templates dir: {TEMPLATES_DIR}')
+
+STATIC_DIR = BASE_DIR / "static"
+print(f'Static dir: {STATIC_DIR}')
 
 
 task_service = TaskService()
@@ -318,25 +330,54 @@ async def enrich_edited_task(
     return ai_description, ai_story_points
 
 HANDBOOK_SYSTEM_PROMPT = (
-    "You are an experienced technical writer and project manager. "
-    "You receive structured information about a software project and its tasks. "
-    "Your goal is to generate a clear, concise, and well-organized project handbook.\n\n"
-    "Requirements:\n"
-    "1. Use markdown headings (e.g., #, ##, ###) and bullet lists where useful.\n"
-    "2. Avoid repeating the raw input; instead, synthesize and organize it.\n"
-    "3. Keep a professional but readable tone.\n"
-    "4. Do NOT include any explanation about how you generated the document, only the handbook itself.\n"
-    "\n"
-    "The handbook should follow this structure (adapt as needed, and use this structure only if those information are available, DO NOT INVENT INFORMATION!!!):\n"
+    "You are an experienced technical writer and project manager.\n"
+    "You receive structured JSON data about a software project and its tasks.\n"
+    "Your goal is to generate a PRINT-READY project handbook.\n\n"
+
+    "General rules:\n"
+    "- Use Markdown only\n"
+    "- Write for a document that will be converted directly to PDF\n"
+    "- Prioritize clarity, spacing, and scannability over prose\n"
+    "- Use bullet lists instead of long paragraphs\n"
+    "- Keep paragraphs under 4 lines\n"
+    "- Use tables where appropriate\n"
+    "- Do NOT use emojis\n"
+    "- Do NOT explain how the document was generated\n"
+    "- Do NOT include comments about formatting\n"
+    "- Do NOT repeat the raw input verbatim\n"
+    "- Do NOT invent information that is not present in the input\n\n"
+
+    "Structure rules:\n"
+    "- Follow the structure below exactly\n"
+    "- Include a section ONLY if relevant information is available\n"
+    "- If a section has no data, omit it entirely\n\n"
+
     "# Project Handbook\n"
     "## 1. Project Overview\n"
     "## 2. Goals & Scope\n"
     "## 3. Key Features & Components\n"
     "## 4. Task Breakdown and Status\n"
-    "## 5. Architecture / Implementation Notes (if inferable)\n"
+    "## 5. Architecture / Implementation Notes (only if clearly inferable)\n"
     "## 6. Risks, Assumptions, and Open Questions\n"
-    "## 7. Future Work / Roadmap\n"
+    "## 7. Future Work / Roadmap\n\n"
+
+    "Task table rules:\n"
+    "- In section \"4. Task Breakdown and Status\", use a single Markdown table\n"
+    "- The table MUST contain exactly one row per task\n"
+    "- DO NOT omit any tasks\n"
+    "- Fill ALL columns for each task\n"
+    "- If a value is missing or null, write \"—\"\n"
+    "- The table columns MUST be exactly:\n"
+    "  ID | Title | Status | Story Points\n\n"
+
+    "Example task table format:\n"
+    "| ID | Title | Status | Story Points |\n"
+    "|----|-------|--------|--------------|\n"
+    "| 123 | Login API | In Progress | 3 |\n"
+    "| 124 | Dashboard UI | Done | 5 |\n"
 )
+
+
 
 async def load_project_from_supabase(project_id: str, user_id: str) -> dict:
     """
@@ -375,6 +416,18 @@ async def load_tasks_from_supabase(project_id: str) -> list[dict]:
     response = await response.execute()
 
     return response.data or []
+
+
+def markdown_to_html(md_text: str) -> str:
+    return markdown.markdown(
+        md_text,
+        extensions=[
+            "extra",        # tables, fenced code
+            "sane_lists",
+            "toc",
+        ],
+        output_format="html5",
+    )
 
 async def generate_project_handbook_text(req: ProjectHandbookRequest) -> str:
     """
@@ -444,7 +497,6 @@ async def generate_project_handbook_text(req: ProjectHandbookRequest) -> str:
     )
 
     data = response.json()
-    print(f'data: {data}')
 
     if response.status_code != 200:
         print(f"OpenRouter handbook error: {data}")
@@ -464,43 +516,26 @@ async def generate_project_handbook_text(req: ProjectHandbookRequest) -> str:
 
     return pretty_handbook
 
-def handbook_text_to_pdf_bytes(text: str, title: str | None = None) -> bytes:
-    """
-    Render a text/markdown handbook into a basic PDF.
-    This is intentionally simple; you can later enhance it (fonts, headings, etc.).
-    """
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
 
-    x_margin = 50
-    y_margin = 50
+env = Environment(
+    loader=FileSystemLoader(str(TEMPLATES_DIR))
+)
 
-    text_obj = c.beginText()
-    text_obj.setTextOrigin(x_margin, height - y_margin)
-    text_obj.setFont("Helvetica", 11)
+def render_handbook_pdf(markdown_text: str) -> bytes:
+    html_body = markdown_to_html(markdown_text)
 
-    # optional title at the top*
-    if title:
-        text_obj.setFont("Helvetica-Bold", 14)
-        text_obj.textLine(title)
-        text_obj.textLine("")
-        text_obj.setFont("Helvetica", 11)
+    template = env.get_template("handbook.html")
+    html = template.render(
+        title="Project Handbook",
+        content=html_body,
+        generated_at=datetime.utcnow().strftime("%Y-%m-%d"),
+    )
 
-    for line in text.splitlines():
-        text_obj.textLine(line)
-        # start a new page if we reached the bottom
-        if text_obj.getY() <= y_margin:
-            c.drawText(text_obj)
-            c.showPage()
-            text_obj = c.beginText()
-            text_obj.setTextOrigin(x_margin, height - y_margin)
-            text_obj.setFont("Helvetica", 11)
+    pdf = HTML(
+        string=html, 
+        base_url=str(BASE_DIR)
+    ).write_pdf(
+        stylesheets=[CSS(str(STATIC_DIR / "handbook.css"))]
+    )
 
-    c.drawText(text_obj)
-    c.showPage()
-    c.save()
-
-    pdf_bytes = buffer.getvalue()
-    buffer.close()
-    return pdf_bytes
+    return pdf
