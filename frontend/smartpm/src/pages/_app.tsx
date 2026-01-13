@@ -1,6 +1,7 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { AuthProvider } from "@/context/AuthProvider";
+import { ProjectProvider } from "@/context/ProjectContext";
 import { Navbar } from "@/components/Navbar";
 import { useRouter } from "next/router";
 
@@ -12,17 +13,19 @@ export default function MyApp({ Component, pageProps }: AppProps) {
 
     return (
         <AuthProvider>
-            <div className="min-h-screen flex flex-col">
-                {!shouldHideNavbar && (
-                    <Navbar
-                        searchPlaceholder="Search..."
-                        onLogoClick={() => router.push("/")}
-                    />
-                )}
-                <main className="flex-grow">
-                    <Component {...pageProps} />
-                </main>
-            </div>
+            <ProjectProvider>
+                <div className="min-h-screen flex flex-col">
+                    {!shouldHideNavbar && (
+                        <Navbar
+                            searchPlaceholder="Search..."
+                            onLogoClick={() => router.push("/")}
+                        />
+                    )}
+                    <main className="flex-grow">
+                        <Component {...pageProps} />
+                    </main>
+                </div>
+            </ProjectProvider>
         </AuthProvider>
     );
 }
