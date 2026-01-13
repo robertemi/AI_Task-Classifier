@@ -1,7 +1,7 @@
 import { LogOut, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useTheme } from "@/hooks/useTheme";
-import { useState } from "react";
+import { useProject } from "@/context/ProjectContext";
 
 interface HeaderProps {
     searchPlaceholder: string;
@@ -11,7 +11,7 @@ interface HeaderProps {
 export function Navbar({ searchPlaceholder, onLogoClick }: HeaderProps) {
     const { signOut, user } = useAuth();
     const { theme, toggleTheme } = useTheme();
-    const [searchQuery, setSearchQuery] = useState("");
+    const { searchQuery, setSearchQuery } = useProject();
 
     // Determine the current theme for rendering, defaulting to 'light' if not yet determined (server-side)
     const currentTheme = theme === null ? 'light' : theme;
