@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useAuth } from '@/context/AuthProvider';
+import { supabase } from '@/lib/supabaseClient';
 
 interface Task {
     id: string;
@@ -80,51 +81,60 @@ export function EditTaskModal({ isOpen, onClose, onTaskEdited, task }: EditTaskM
     setLoading(true);
     setError(null);
 
-    const updatePayload: { 
-        taskId: string; 
-        projectId: string; 
-        task_title?: string; 
-        user_description?: string; 
-        ai_description?: string; 
-        story_points?: number;
-        userId: string 
-    } = {
-      taskId: task.id,
-      projectId: task.project_id,
-      userId: user!.id,
-    };
-
-    if (isTitleChanged) {
-      updatePayload.task_title = trimmedNewTitle;
-    }
-    if (isUserDescriptionChanged) {
-      updatePayload.user_description = trimmedNewUserDescription;
-    }
-    if (isAiDescriptionChanged) {
-      updatePayload.ai_description = trimmedNewAiDescription;
-    }
-    if (isStoryPointsChanged) {
-        updatePayload.story_points = newStoryPoints;
-    }
-
     try {
-      const response = await fetch('https://ai-task-classifier.onrender.com/index/edit/task', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatePayload),
-      });
+        // Update story points directly via Supabase if changed
+        if (isStoryPointsChanged) {
+            const { error: spError } = await supabase
+                .from('tasks')
+                .update({ story_points: newStoryPoints ?? 0 })
+                .eq('id', task.id);
+            
+            if (spError) throw spError;
+        }
+
+        // If other fields changed, call the backend
+        if (isTitleChanged || isUserDescriptionChanged || isAiDescriptionChanged) {
+            const updatePayload: { 
+                taskId: string; 
+                projectId: string; 
+                task_title?: string; 
+                user_description?: string; 
+                ai_description?: string; 
+                userId: string 
+            } = {
+              taskId: task.id,
+              projectId: task.project_id,
+              userId: user!.id,
+            };
+
+            if (isTitleChanged) {
+              updatePayload.task_title = trimmedNewTitle;
+            }
+            if (isUserDescriptionChanged) {
+              updatePayload.user_description = trimmedNewUserDescription;
+            }
+            if (isAiDescriptionChanged) {
+              updatePayload.ai_description = trimmedNewAiDescription;
+            }
+
+            const response = await fetch('https://ai-task-classifier.onrender.com/index/edit/task', {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(updatePayload),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                if (response.status !== 404 || !errorData.detail || !errorData.detail.includes("not found")) {
+                    throw new Error(errorData.detail || 'Failed to edit task');
+                }
+            }
+        }
 
       onTaskEdited();
       onClose();
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status !== 404 || !errorData.detail || !errorData.detail.includes("not found")) {
-            throw new Error(errorData.detail || 'Failed to edit task');
-        }
-      }
 
     } catch (err: any) {
       setError(err.message);
