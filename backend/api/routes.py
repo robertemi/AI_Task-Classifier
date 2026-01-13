@@ -14,7 +14,7 @@ from backend.types.types import (
     DeleteEnrichedTaskRequest, ProjectHandbookRequest
 )
 from backend.rag.retriever import RAGService
-from backend.model.model import enrich_task_details, generate_project_handbook_text, handbook_text_to_pdf_bytes
+from backend.model.model import enrich_task_details, generate_project_handbook_text, render_handbook_pdf
 from backend.service.project_service import ProjectService
 from backend.service.task_service import TaskService
 
@@ -170,25 +170,17 @@ async def generate_project_handbook_pdf(req: ProjectHandbookRequest):
     """
     try:
         # generate handbook text from Supabase data
-        handbook_text = await generate_project_handbook_text(req)
+        markdown_text = await generate_project_handbook_text(req)
+        pdf_bytes = render_handbook_pdf(markdown_text)
 
-        if not handbook_text:
-            raise HTTPException(status_code=404, detail="No handbook content could be generated.")
 
-        # convert text to PDF bytes
-        pdf_bytes = handbook_text_to_pdf_bytes(
-            handbook_text,
-            title=f"Project {req.projectId} - Handbook"
-        )
-
-        # stream the PDF back to the client
-        filename = f"project_{req.projectId}_handbook.pdf"
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+            headers={
+            "Content-Disposition": "inline; filename=project-handbook.pdf"
+            }
         )
     except Exception as e:
         print(f'Unexpected error in project handbook route: {e}')
-        # raise HTTPException(status_code=500, detail=f"Handbook generation failed: {e}") from e  
         raise HTTPException(status_code=500, detail=f"Handbook generation failed unexpectedly: {e}")
